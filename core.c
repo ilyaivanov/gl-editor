@@ -33,6 +33,16 @@ typedef struct V3f {
     };
 }  V3f;
 
+typedef struct Mat4 {
+    float values[16];
+} Mat4;
 
+typedef struct MyBitmap
+{
+    i32 width;
+    i32 height;
+    i32 bytesPerPixel;
+    u32 *pixels;
+} MyBitmap;
 
 #endif

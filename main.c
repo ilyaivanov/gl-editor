@@ -3,6 +3,7 @@
 #include "win32.c"
 #include "opengl/glFunctions.c"
 #include "opengl/openglProgram.c"
+#include "font.c"
 
 int isRunning = 1;
 V2i clientAreaSize = {0};
@@ -40,51 +41,76 @@ LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 }
 
 
-
-GLuint currentProgram;
-
-void UseProgram(GLuint program)
-{
-    glUseProgram(program);
-    currentProgram = program;
-}
-
-
-inline void setV3f(char *name, V3f vec)
-{
-    glUniform3f(glGetUniformLocation(currentProgram, name), vec.x, vec.y, vec.z);
-}
-
-
 GLuint vertexBuffer;
 GLuint vertexArray;
 
-#define POINTS_PER_VERTEX 2
+#define FLOATS_PER_VERTEX 4
 float vertices[] = {
-    0.5f, 0.0f,
-    0.0f, 0.0f,
-    0.5f, 0.5f,
-    0.0f, 0.5f
+    //Position     UV coords
+    1.0f, 0.0f,    1.0f, 0.0f,
+    0.0f, 0.0f,    0.0f, 0.0f,
+    1.0f, 1.0f,    1.0f, 1.0f,
+    0.0f, 1.0f,    0.0f, 1.0f
 };
 
 void Draw()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    setV3f("color", (V3f){1, 1, 1});
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, ArrayLength(vertices) / POINTS_PER_VERTEX);
-}
+    // allows me to set vecrtex coords as 0..width/height, instead of -1..+1
+    // 0,0 is bottom left, not top left
+    // matrix in code != matrix in math notation, details at https://youtu.be/kBuaCqaCYwE?t=3084
+    // in short: rows in math are columns in code
+    Mat4 projection = {
+        2.0f / (f32)clientAreaSize.x, 0, 0, -1,
+        0, 2.0f / (f32)clientAreaSize.y, 0, -1,
+        0, 0, 1, 0,
+        0, 0, 0, 1,
+    };
+    SetMat4("projection", projection);
 
+
+    u8* line = "SetMat4(\"projection\", projection);";
+    currentFont = &codeFont;
+
+    i32 padding = 20;
+    i32 x = padding;
+    i32 y = clientAreaSize.y - currentFont->textMetric.tmHeight - padding;
+
+    u8 *ch = line;
+    while(*ch)
+    {
+        u8 code = *ch;
+        MyBitmap bitmap = currentFont->textures[code];
+        
+        Mat4 view = 
+        {
+            bitmap.width, 0, 0, x,
+            0, bitmap.height, 0, y,
+            0, 0, 1, 0,
+            0, 0, 0, 1,
+        };
+        SetMat4("view", view);
+        glBindTexture(GL_TEXTURE_2D, currentFont->cachedTextures[code]);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, ArrayLength(vertices) / FLOATS_PER_VERTEX);
+
+        x += bitmap.width + GetKerningValue(code, *(ch+1));
+        ch++;
+    }
+}
 
 
 void WinMainCRTStartup()
 {
+    PreventWindowsDPIScaling();
+
     HINSTANCE instance = GetModuleHandle(0);
     HWND window = OpenWindow(instance, OnEvent);
 
     HDC dc = GetDC(window);
     Win32InitOpenGL(window);
     InitFunctions();
+    InitFonts();
 
     GLuint program = CreateProgram("..\\base.vs", "..\\base.fs");
     UseProgram(program);
@@ -96,11 +122,17 @@ void WinMainCRTStartup()
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
     glBindVertexArray(vertexArray);
-    size_t stride = POINTS_PER_VERTEX * sizeof(float);
+    size_t stride = FLOATS_PER_VERTEX * sizeof(float);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, stride, (void*)0);
     glEnableVertexAttribArray(0);  
+
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride, (void*)0);
+    glEnableVertexAttribArray(1);  
     
     glClearColor(0.1, 0.1, 0.1, 1);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     while (isRunning)
     {

@@ -65,6 +65,42 @@ void Win32InitOpenGL(HWND Window)
     ReleaseDC(Window, WindowDC);
 }
 
+void InitBitmapInfo(BITMAPINFO * bitmapInfo, u32 width, u32 height)
+{
+    bitmapInfo->bmiHeader.biSize = sizeof(bitmapInfo->bmiHeader);
+    bitmapInfo->bmiHeader.biBitCount = 32;
+    bitmapInfo->bmiHeader.biWidth = width;
+    bitmapInfo->bmiHeader.biHeight = height; // makes rows go up, instead of going down by default
+    bitmapInfo->bmiHeader.biPlanes = 1;
+    bitmapInfo->bmiHeader.biCompression = BI_RGB;
+}
+
+
+// DPI Scaling
+// user32.dll is linked statically, so dynamic linking won't load that dll again
+// taken from https://github.com/cmuratori/refterm/blob/main/refterm.c#L80
+// this is done because GDI font drawing is ugly and unclear when DPI scaling is enabled
+
+typedef BOOL WINAPI set_process_dpi_aware(void);
+typedef BOOL WINAPI set_process_dpi_awareness_context(DPI_AWARENESS_CONTEXT);
+static void PreventWindowsDPIScaling()
+{
+    HMODULE WinUser = LoadLibraryW(L"user32.dll");
+    set_process_dpi_awareness_context *SetProcessDPIAwarenessContext = (set_process_dpi_awareness_context *)GetProcAddress(WinUser, "SetProcessDPIAwarenessContext");
+    if (SetProcessDPIAwarenessContext)
+    {
+        SetProcessDPIAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE);
+    }
+    else
+    {
+        set_process_dpi_aware *SetProcessDPIAware = (set_process_dpi_aware *)GetProcAddress(WinUser, "SetProcessDPIAware");
+        if (SetProcessDPIAware)
+        {
+            SetProcessDPIAware();
+        }
+    }
+}
+
 
 
 //

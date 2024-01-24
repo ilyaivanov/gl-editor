@@ -4,6 +4,26 @@
 #include "glFlags.h"
 #include "glFunctions.c"
 
+
+GLuint currentProgram;
+
+void UseProgram(GLuint program)
+{
+    glUseProgram(program);
+    currentProgram = program;
+}
+
+
+inline void SetV3f(char *name, V3f vec)
+{
+    glUniform3f(glGetUniformLocation(currentProgram, name), vec.x, vec.y, vec.z);
+}
+
+inline void SetMat4(char *name, Mat4 mat)
+{
+    glUniformMatrix4fv(glGetUniformLocation(currentProgram, name), 1, GL_TRUE, &mat.values[0]);
+}
+
 GLuint CompileShader(GLuint shaderEnum, const char* source)
 {
     GLuint shader = glCreateShader(shaderEnum);
@@ -68,3 +88,4 @@ GLuint CreateProgram(char *vertexShaderPath, char *fragmentShaderPath)
     glDeleteShader(fragmentShader);
     return program;
 }
+

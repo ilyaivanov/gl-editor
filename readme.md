@@ -1,3 +1,3 @@
 # Yet Another Fucking Editor (YAFE)
 
-Editor build in C and OpenGL without lib including std lib. 
+Editor build in C and OpenGL without libs including C standart library. 
