@@ -1,7 +1,7 @@
 @echo off
 set arg1=%1
-
-set CompilerOptions=/nologo /GR- /FC /Oi /Zi /GS- /Gs9999999
+@REM /Oi /O2
+set CompilerOptions=/nologo /GR- /FC /Zi /GS- /Gs9999999
 
 set LinkerOptions=/nodefaultlib /subsystem:windows /STACK:0x100000,0x100000 /incremental:no
 
