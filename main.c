@@ -4,15 +4,26 @@
 #include "opengl/glFunctions.c"
 #include "opengl/openglProgram.c"
 #include "font.c"
+#include "ui.c"
 
-int isRunning = 1;
+float SYSTEM_SCALE = 1;
+#define PX(val) ((val) * SYSTEM_SCALE)
+
+i32 isRunning = 1;
 V2i clientAreaSize = {0};
+
+Layout mainLayout = {0};
+
+f32 zDeltaThisFrame;
 
 void Draw();
 
 void OnResize()
 {
     glViewport(0, 0, clientAreaSize.x, clientAreaSize.y);
+
+    mainLayout.height = clientAreaSize.y;
+    mainLayout.width = clientAreaSize.x;
 }
 
 LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
@@ -25,6 +36,10 @@ LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
     {
         clientAreaSize.x = LOWORD(lParam);
         clientAreaSize.y = HIWORD(lParam);
+
+        HDC dc = GetDC(window);
+        SYSTEM_SCALE = (float)GetDeviceCaps(dc, LOGPIXELSY) / (float)USER_DEFAULT_SCREEN_DPI;
+
         OnResize();
         InvalidateRect(window, NULL, TRUE);
     }
@@ -36,6 +51,16 @@ LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
         SwapBuffers(dc);
         EndPaint(window, &paint);
     }
+    else if (message == WM_KEYDOWN)
+    {
+    }
+    else if (message == WM_KEYUP)
+    {
+    }
+    else if (message == WM_MOUSEWHEEL)
+    {
+        zDeltaThisFrame += (float)GET_WHEEL_DELTA_WPARAM(wParam);
+    }
 
     return DefWindowProc(window, message, wParam, lParam);
 }
@@ -43,6 +68,8 @@ LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 
 GLuint vertexBuffer;
 GLuint vertexArray;
+GLuint primitivesProgram;
+GLuint textProgram;
 
 #define FLOATS_PER_VERTEX 4
 float vertices[] = {
@@ -52,9 +79,16 @@ float vertices[] = {
     1.0f, 1.0f,    1.0f, 1.0f,
     0.0f, 1.0f,    0.0f, 1.0f
 };
+FileContent file;
 
 void Draw()
 {
+    mainLayout.offsetY = Clampf32(mainLayout.offsetY + zDeltaThisFrame, -(mainLayout.pageHeight - mainLayout.height), 0);
+
+    zDeltaThisFrame = 0;
+
+    UseProgram(textProgram);
+
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // allows me to set vecrtex coords as 0..width/height, instead of -1..+1
@@ -67,36 +101,56 @@ void Draw()
         0, 0, 1, 0,
         0, 0, 0, 1,
     };
+
     SetMat4("projection", projection);
 
-
-    u8* line = "SetMat4(\"projection\", projection);";
     currentFont = &codeFont;
 
-    i32 padding = 20;
-    i32 x = padding;
-    i32 y = clientAreaSize.y - currentFont->textMetric.tmHeight - padding;
+    f32 padding = 20.0f;
+    f32 startY = clientAreaSize.y - currentFont->textMetric.tmHeight - padding;
 
-    u8 *ch = line;
+    f32 runningX = padding;
+    f32 runningY = startY - mainLayout.offsetY;
+
+    u8 *ch = file.content;
     while(*ch)
     {
         u8 code = *ch;
-        MyBitmap bitmap = currentFont->textures[code];
-        
-        Mat4 view = 
+        if(code == '\n')
         {
-            bitmap.width, 0, 0, x,
-            0, bitmap.height, 0, y,
-            0, 0, 1, 0,
-            0, 0, 0, 1,
-        };
-        SetMat4("view", view);
-        glBindTexture(GL_TEXTURE_2D, currentFont->cachedTextures[code]);
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, ArrayLength(vertices) / FLOATS_PER_VERTEX);
+            runningX = padding;
+            runningY -= currentFont->textMetric.tmHeight;
+        }
+        else if(code >= ' ') {
 
-        x += bitmap.width + GetKerningValue(code, *(ch+1));
+            MyBitmap bitmap = currentFont->textures[code];
+            
+            Mat4 view = 
+            {
+                bitmap.width, 0, 0, runningX,
+                0, bitmap.height, 0, runningY,
+                0, 0, 1, 0,
+                0, 0, 0, 1,
+            };
+            SetMat4("view", view);
+            glBindTexture(GL_TEXTURE_2D, currentFont->cachedTextures[code]);
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, ArrayLength(vertices) / FLOATS_PER_VERTEX);
+
+            //TODO monospaced fonts have no kerning, I can figure if font is monospaced and skip kerning lookup
+            runningX += bitmap.width + GetKerningValue(code, *(ch+1));
+        }
         ch++;
     }
+    runningY -= (currentFont->textMetric.tmHeight + padding);
+
+    mainLayout.pageHeight = startY - runningY - mainLayout.offsetY;
+
+    UseProgram(primitivesProgram);
+    Mat4 scrollView = DrawScrollbar(&mainLayout, PX(10));
+    SetMat4("projection", projection);
+    SetV3f("color", (V3f){0.3f, 0.3f, 0.3f});
+    SetMat4("view", scrollView);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, ArrayLength(vertices) / FLOATS_PER_VERTEX);
 }
 
 
@@ -112,8 +166,9 @@ void WinMainCRTStartup()
     InitFunctions();
     InitFonts();
 
-    GLuint program = CreateProgram("..\\base.vs", "..\\base.fs");
-    UseProgram(program);
+    file = ReadMyFileImp("..\\main.c");
+    textProgram = CreateProgram("..\\shaders\\base.vs", "..\\shaders\\base.fs");
+    primitivesProgram = CreateProgram("..\\shaders\\primitives.vs", "..\\shaders\\primitives.fs");
 
     glGenBuffers(1, &vertexBuffer);
     glGenVertexArrays(1, &vertexArray);

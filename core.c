@@ -45,4 +45,34 @@ typedef struct MyBitmap
     u32 *pixels;
 } MyBitmap;
 
+typedef struct Layout
+{
+    float x, y, width, height;
+    float runningY;
+    float offsetY, pageHeight;
+} Layout;
+
+
+
+
+inline i32 Clampi32(i32 val, i32 min, i32 max)
+{
+    if (val < min)
+        return min;
+    if (val > max)
+        return max;
+    return val;
+}
+
+
+inline f32 Clampf32(f32 val, f32 min, f32 max)
+{
+    if (val < min)
+        return min;
+    if (val > max)
+        return max;
+    return val;
+}
+
+
 #endif
