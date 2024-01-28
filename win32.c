@@ -26,8 +26,11 @@ HWND OpenWindow(HINSTANCE instance, WNDPROC OnEvent)
     int screenWidth = GetDeviceCaps(dc, HORZRES);
     int screenHeight = GetDeviceCaps(dc, VERTRES);
 
+    int windowWidth = 1000;
+    int windowHeight = 1200;
+    int padding = 20;
     HWND window = CreateWindowW(windowClass.lpszClassName, (wchar_t *)"Editor", EDITOR_DEFAULT_WINDOW_STYLE | WS_VISIBLE,
-                                CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
+                                screenWidth - windowWidth - padding, padding, windowWidth, windowHeight,
                                 0, 0, instance, 0);
 
     BOOL USE_DARK_MODE = TRUE;
@@ -135,5 +138,24 @@ FileContent ReadMyFileImp(char* path)
     return res;
 }
 
+u32 GetMyFileSize(char *path)
+{
+    HANDLE file = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+
+    LARGE_INTEGER size;
+    GetFileSizeEx(file, &size);
+
+    CloseHandle(file);
+    return (u32)size.QuadPart;
+}
+
+void ReadFileInto(char *path, u32 fileSize, char* buffer)
+{
+    HANDLE file = CreateFileA(path, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+
+    DWORD bytesRead;
+    ReadFile(file, buffer, fileSize, &bytesRead, 0);
+    CloseHandle(file);
+}
 
 #endif

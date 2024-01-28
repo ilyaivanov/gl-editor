@@ -55,10 +55,10 @@ inline int HashAndProbeIndex(FontData *font, u16 left, u16 right)
     }
     return index;
 }
-
-#define TRANSPARENT_R 11
-#define TRANSPARENT_G 11
-#define TRANSPARENT_B 11
+// 0xA011A0
+#define TRANSPARENT_R 0x0
+#define TRANSPARENT_G 0x0
+#define TRANSPARENT_B 0x0
 
 // takes dimensions of destinations, reads rect from source at (0,0)
 inline void CopyRectTo(MyBitmap *sourceT, MyBitmap *destination)
@@ -101,7 +101,9 @@ void InitFontSystem(FontData *fontData, int fontSize, char* fontName)
                              CLIP_DEFAULT_PRECIS,
 
                              //I've experimented with the Chrome and it doesn't render LCD quality for fonts above 32px
-                             CLEARTYPE_QUALITY,
+                            //  ANTIALIASED_QUALITY,
+                              CLEARTYPE_QUALITY,
+                             
                              DEFAULT_PITCH,
                              fontName);
 

@@ -19,6 +19,16 @@ inline void SetV3f(char *name, V3f vec)
     glUniform3f(glGetUniformLocation(currentProgram, name), vec.x, vec.y, vec.z);
 }
 
+inline void Set1f(char *name, f32 v)
+{
+    glUniform1f(glGetUniformLocation(currentProgram, name), v);
+}
+
+inline void Set1i(char *name, i32 v)
+{
+    glUniform1i(glGetUniformLocation(currentProgram, name), v);
+}
+
 inline void SetMat4(char *name, Mat4 mat)
 {
     glUniformMatrix4fv(glGetUniformLocation(currentProgram, name), 1, GL_TRUE, &mat.values[0]);

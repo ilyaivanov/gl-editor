@@ -5,6 +5,7 @@ layout (location = 1) in vec2 aTexture;
 
 uniform mat4 projection;
 uniform mat4 view;
+uniform vec3 color;
 
 out vec2 texCoord;
 void main()
