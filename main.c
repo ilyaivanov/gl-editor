@@ -26,8 +26,6 @@ f32 zDeltaThisFrame;
 
 #define PATH "..\\sample.txt"
 
-i32 cursorIndex = 0;
-
 i32 isEditMode = 0;
 StringBuffer file;
 
@@ -69,17 +67,17 @@ LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
     else if (message == WM_KEYDOWN)
     {
         if(wParam == VK_DOWN)
-            cursorIndex = MoveCursorDown(&file, cursorIndex);
+            MoveCursorDown(&file);
         else if(wParam == VK_UP)
-            cursorIndex = MoveCursorUp(&file, cursorIndex);
+            MoveCursorUp(&file);
         else if(wParam == VK_LEFT)
-            cursorIndex = MoveCursorLeft(&file, cursorIndex);
+            MoveCursorLeft(&file);
         else if(wParam == VK_RIGHT)
-            cursorIndex = MoveCursorRight(&file, cursorIndex);
+            MoveCursorRight(&file);
         else if (wParam == VK_BACK)
-            cursorIndex = RemoveCharFromLeft(&file, cursorIndex);
+            RemoveCharFromLeft(&file);
         else if (wParam == VK_DELETE)
-            cursorIndex = RemoveCurrentChar(&file, cursorIndex);
+            RemoveCurrentChar(&file);
         else if (wParam == 'S' && (GetKeyState(VK_CONTROL) & 0b10000000))
             WriteMyFile(PATH, file.content, file.size);
     }
@@ -93,11 +91,7 @@ LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
     else if (message == WM_CHAR)
     {
         if(wParam >= ' ' || wParam == '\r')
-        {
-            WPARAM code = wParam == '\r' ? '\n' : wParam;
-            InsertCharAt(&file, cursorIndex, code);
-            cursorIndex++;
-        }
+            InsertChartUnderCursor(&file, wParam);
     }
 
     return DefWindowProc(window, message, wParam, lParam);
@@ -182,36 +176,17 @@ void Draw()
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-
-    // cache these for performance
-    i32 cursorCol = -1;
-    i32 cursorRow = 0;
-
-    for(int i = cursorIndex - 1; i >= 0; i--)
-    {
-        if(*(file.content + i) == '\n')
-            cursorRow++;
-
-        if(*(file.content + i) == '\n' && cursorCol == -1)
-        {
-            cursorCol = cursorIndex - i - 1;
-        }
-    }
-    cursorCol = cursorCol == -1 ? cursorIndex : cursorCol;
-
     UseProgram(primitivesProgram);
 
     Mat4 cursorView = CreateViewMatrix(
-       /*x*/ spaceForLineNumbers + cursorCol * currentFont->textures['W'].width,
-       /*y*/ mainLayout.height - padding - (cursorRow + 1) * currentFont->textMetric.tmHeight - mainLayout.offsetY,
+       /*x*/ spaceForLineNumbers + cursor.col * currentFont->textures['W'].width,
+       /*y*/ mainLayout.height - padding - (cursor.row + 1) * currentFont->textMetric.tmHeight - mainLayout.offsetY,
        /*w*/ currentFont->textures['W'].width,
        /*h*/ currentFont->textMetric.tmHeight
     );
     SetV3f("color", cursorColor);
     SetMat4("view", cursorView);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, ArrayLength(vertices) / FLOATS_PER_VERTEX);
-
-
 
     UseProgram(textProgram);
     SetMat4("projection", projection);
@@ -248,7 +223,7 @@ void Draw()
             MyBitmap bitmap = currentFont->textures[code];
             
             SetMat4("view", CreateViewMatrix(runningX, runningY, bitmap.width, bitmap.height));
-            if (i == cursorIndex)
+            if (i == cursor.cursorIndex)
                 SetV3f("color", selectedTextColor);
             else
                 SetV3f("color", textColor);

@@ -1,9 +1,41 @@
 #include "string.c"
 #include "core.c"
 
-i32 GetNewLineBefore(StringBuffer *buffer, i32 cursorIndex)
+typedef struct CursorState
+{ 
+    i32 cursorIndex;
+    i32 col;
+    i32 row;
+    i32 desiredCol;
+} CursorState;
+
+CursorState cursor = {0};
+
+void UpdateCursorPosition(StringBuffer* buffer, i32 newIndex)
 {
-    for (int i = cursorIndex - 1; i >= 0; i--)
+    cursor.cursorIndex = newIndex;
+
+    cursor.col = -1;
+    cursor.row = 0;
+
+    // There is definitelly a better way, compared to traversing the whole file
+    // maybe remove col and row completelly and use cursor index for now
+    for (int i = cursor.cursorIndex - 1; i >= 0; i--)
+    {
+        if (*(buffer->content + i) == '\n')
+            cursor.row++;
+
+        if (*(buffer->content + i) == '\n' && cursor.col == -1)
+        {
+            cursor.col = cursor.cursorIndex - i - 1;
+        }
+    }
+    cursor.col = cursor.col == -1 ? cursor.cursorIndex : cursor.col;
+}
+
+i32 GetNewLineBefore(StringBuffer* buffer, i32 pos)
+{
+    for (int i = pos - 1; i >= 0; i--)
     {
         if (*(buffer->content + i) == '\n')
             return i;
@@ -11,9 +43,9 @@ i32 GetNewLineBefore(StringBuffer *buffer, i32 cursorIndex)
     return -1;
 }
 
-i32 GetNewLineAfter(StringBuffer *buffer, i32 cursorIndex)
+i32 GetNewLineAfter(StringBuffer* buffer, i32 pos)
 {
-    for (int i = cursorIndex; i < buffer->size; i++)
+    for (int i = pos; i < buffer->size; i++)
     {
         if (*(buffer->content + i) == '\n')
             return i;
@@ -21,54 +53,66 @@ i32 GetNewLineAfter(StringBuffer *buffer, i32 cursorIndex)
     return buffer->size;
 }
 
-i32 MoveCursorUp(StringBuffer *buffer, i32 cursorIndex)
+void MoveCursorUp(StringBuffer* buffer)
 {
-    i32 prevNewLineIndex = GetNewLineBefore(buffer, cursorIndex);
+    i32 prevNewLineIndex = GetNewLineBefore(buffer, cursor.cursorIndex);
 
     i32 prevPrevNewLineIndex = GetNewLineBefore(buffer, prevNewLineIndex);
 
-    return MinI32(prevPrevNewLineIndex + (cursorIndex - prevNewLineIndex), MaxI32(prevNewLineIndex, 0));
+    i32 currentOffset = cursor.cursorIndex - prevNewLineIndex;
+    i32 targetIndex = prevPrevNewLineIndex + currentOffset + (cursor.desiredCol - cursor.col);
+
+    UpdateCursorPosition(buffer, MinI32(targetIndex, MaxI32(prevNewLineIndex, 0)));
 }
 
-i32 MoveCursorDown(StringBuffer *buffer, i32 cursorIndex)
+void MoveCursorDown(StringBuffer* buffer)
 {
-    i32 prevNewLineIndex = GetNewLineBefore(buffer, cursorIndex);
+    i32 prevNewLineIndex = GetNewLineBefore(buffer, cursor.cursorIndex);
     
-    i32 nextNewLineIndex = GetNewLineAfter(buffer, cursorIndex);
+    i32 nextNewLineIndex = GetNewLineAfter(buffer, cursor.cursorIndex);
 
     i32 nextNextNewLineIndex = GetNewLineAfter(buffer, nextNewLineIndex + 1);
 
-    return MinI32(nextNewLineIndex + (cursorIndex - prevNewLineIndex), nextNextNewLineIndex);
+    i32 currentOffset = cursor.cursorIndex - prevNewLineIndex;
+    i32 targetIndex = nextNewLineIndex + currentOffset + (cursor.desiredCol - cursor.col);
+    UpdateCursorPosition(buffer, MinI32(targetIndex, nextNextNewLineIndex));
 }
 
-i32 MoveCursorLeft(StringBuffer *buffer, i32 cursorIndex)
+void MoveCursorLeft(StringBuffer* buffer)
 {
-    return MaxI32(cursorIndex - 1, 0);
+    UpdateCursorPosition(buffer, MaxI32(cursor.cursorIndex - 1, 0));
+    cursor.desiredCol = cursor.col;
 }
 
-i32 MoveCursorRight(StringBuffer *buffer, i32 cursorIndex)
+void MoveCursorRight(StringBuffer* buffer)
 {
-    return MinI32(cursorIndex + 1, buffer->size);
+    UpdateCursorPosition(buffer, MinI32(cursor.cursorIndex + 1, buffer->size));
+    cursor.desiredCol = cursor.col;
 }
 
 
-i32 RemoveCharFromLeft(StringBuffer *buffer, i32 cursorIndex)
+void RemoveCharFromLeft(StringBuffer* buffer)
 {
-    if(cursorIndex > 0)
+    if(cursor.cursorIndex > 0)
     {
-        RemoveCharAt(buffer, cursorIndex - 1);
-        return cursorIndex - 1;
+        RemoveCharAt(buffer, cursor.cursorIndex - 1);
+        UpdateCursorPosition(buffer, cursor.cursorIndex - 1);
+        cursor.desiredCol = cursor.col;
     }
-    return cursorIndex;
 }
 
 
-i32 RemoveCurrentChar(StringBuffer *buffer, i32 cursorIndex)
+void RemoveCurrentChar(StringBuffer* buffer)
 {
-    if(cursorIndex < buffer->size)
+    if(cursor.cursorIndex < buffer->size)
     {
-        RemoveCharAt(buffer, cursorIndex);
-        return cursorIndex;
+        RemoveCharAt(buffer, cursor.cursorIndex);
     }
-    return cursorIndex;
+}
+
+void InsertChartUnderCursor(StringBuffer* buffer, WPARAM ch)
+{
+    WPARAM code = ch == '\r' ? '\n' : ch;
+    InsertCharAt(buffer, cursor.cursorIndex, code);
+    UpdateCursorPosition(buffer, cursor.cursorIndex + 1);
 }
