@@ -203,7 +203,7 @@ void Draw()
 
     Mat4 cursorView = CreateViewMatrix(
        /*x*/ spaceForLineNumbers + cursorCol * currentFont->textures['W'].width,
-       /*y*/ mainLayout.height - padding - (cursorRow + 1) * currentFont->textMetric.tmHeight,
+       /*y*/ mainLayout.height - padding - (cursorRow + 1) * currentFont->textMetric.tmHeight - mainLayout.offsetY,
        /*w*/ currentFont->textures['W'].width,
        /*h*/ currentFont->textMetric.tmHeight
     );
@@ -272,7 +272,7 @@ void Draw()
 
 
 
-    mainLayout.pageHeight = startY - runningY - mainLayout.offsetY;
+    mainLayout.pageHeight = startY - runningY - mainLayout.offsetY + padding;
 
     UseProgram(primitivesProgram);
     Mat4 scrollView = DrawScrollbar(&mainLayout, PX(10));
