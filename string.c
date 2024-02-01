@@ -43,7 +43,7 @@ void InsertCharAt(StringBuffer *buffer, i32 at, i32 ch)
         char *currentStr = buffer->content;
         buffer->capacity *= 2;
         buffer->content = VirtualAllocateMemory(buffer->capacity);
-        MoveMyMemory(buffer->content, currentStr, buffer->size);
+        MoveMyMemory(currentStr, buffer->content, buffer->size);
         VirtualFreeMemory(currentStr);
     }
 
@@ -78,6 +78,34 @@ StringBuffer ReadFileIntoDoubledSizedBuffer(char *path)
     }
 
     return res;
+}
+
+
+// Ugly function taken from the ChatFuckYouT
+// Will need to rewrite this with custom string type which has a length
+void ReverseString(char *str) {
+    if (str == NULL)
+        return;
+
+    int length = 0;
+    while (str[length] != '\0') {
+        length++;
+    }
+
+    int start = 0;
+    int end = length - 1;
+    char temp;
+
+    while (start < end) {
+        // Swap characters at start and end indices
+        temp = str[start];
+        str[start] = str[end];
+        str[end] = temp;
+
+        // Move towards the center
+        start++;
+        end--;
+    }
 }
 
 #endif

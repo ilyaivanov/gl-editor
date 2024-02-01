@@ -13,6 +13,17 @@ void UseProgram(GLuint program)
     currentProgram = program;
 }
 
+inline Mat4 CreateViewMatrix(float x, float y, float w, float h)
+{
+    return (Mat4)
+    {
+        w, 0, 0, x,
+        0, h, 0, y,
+        0, 0, 1, 0,
+        0, 0, 0, 1,
+    };
+
+}
 
 inline void SetV3f(char *name, V3f vec)
 {

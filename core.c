@@ -64,8 +64,32 @@ inline i32 Clampi32(i32 val, i32 min, i32 max)
     return val;
 }
 
+inline i32 MaxI32(i32 v1, i32 v2)
+{
+    if(v1 > v2)
+        return v1;
+    return v2;
+}
+
+
+inline i32 MinI32(i32 v1, i32 v2)
+{
+    if(v1 < v2)
+        return v1;
+    return v2;
+}
+
 
 inline f32 Clampf32(f32 val, f32 min, f32 max)
+{
+    if (val < min)
+        return min;
+    if (val > max)
+        return max;
+    return val;
+}
+
+inline f32 ClampI32(i32 val, i32 min, i32 max)
 {
     if (val < min)
         return min;

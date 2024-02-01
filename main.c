@@ -1,11 +1,13 @@
 #include <windows.h>
 #include <gl/gl.h>
+
 #include "win32.c"
 #include "opengl/glFunctions.c"
 #include "opengl/openglProgram.c"
 #include "font.c"
 #include "ui.c"
 #include "string.c"
+#include "editor.c"
 
 float SYSTEM_SCALE = 1;
 #define PX(val) ((val) * SYSTEM_SCALE)
@@ -22,6 +24,7 @@ Layout mainLayout = {0};
 
 f32 zDeltaThisFrame;
 
+#define PATH "..\\sample.txt"
 
 i32 cursorIndex = 0;
 
@@ -66,75 +69,19 @@ LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
     else if (message == WM_KEYDOWN)
     {
         if(wParam == VK_DOWN)
-        {
-            i32 prevNewLineIndex = -1;
-            for(int i = cursorIndex - 1; i >= 0; i--)
-            {
-                if(*(file.content + i) == '\n')
-                {
-                    prevNewLineIndex = i;
-                    break;
-                }
-            }
-
-            i32 nextNewLineIndex = 0;
-            for(int i = cursorIndex; i < file.size; i++)
-            {
-                if(*(file.content + i) == '\n')
-                {
-                    nextNewLineIndex = i;
-                    break;
-                }
-            }
-
-            i32 currentOffset = (cursorIndex - prevNewLineIndex);
-            
-            cursorIndex = nextNewLineIndex + currentOffset;
-        }
+            cursorIndex = MoveCursorDown(&file, cursorIndex);
         else if(wParam == VK_UP)
-        {
-            i32 prevNewLineIndex = -1;
-            for(int i = cursorIndex - 1; i >= 0; i--)
-            {
-                if(*(file.content + i) == '\n')
-                {
-                    prevNewLineIndex = i;
-                    break;
-                }
-            }
-
-            i32 prevPrevNewLineIndex = -1;
-            for(int i = prevNewLineIndex - 1; i >= 0; i--)
-            {
-                if(*(file.content + i) == '\n')
-                {
-                    prevPrevNewLineIndex = i;
-                    break;
-                }
-            }
-
-            i32 currentOffset = (cursorIndex - prevNewLineIndex);
-            
-            cursorIndex = prevPrevNewLineIndex + currentOffset;
-        }
-
+            cursorIndex = MoveCursorUp(&file, cursorIndex);
         else if(wParam == VK_LEFT)
-        {
-            cursorIndex -= 1;
-        }
+            cursorIndex = MoveCursorLeft(&file, cursorIndex);
         else if(wParam == VK_RIGHT)
-        {
-            cursorIndex += 1;
-        }
+            cursorIndex = MoveCursorRight(&file, cursorIndex);
         else if (wParam == VK_BACK)
-        {
-            if(cursorIndex > 0)
-            {
-                RemoveCharAt(&file, cursorIndex - 1);
-                cursorIndex -= 1;
-            }
-        }
-        
+            cursorIndex = RemoveCharFromLeft(&file, cursorIndex);
+        else if (wParam == VK_DELETE)
+            cursorIndex = RemoveCurrentChar(&file, cursorIndex);
+        else if (wParam == 'S' && (GetKeyState(VK_CONTROL) & 0b10000000))
+            WriteMyFile(PATH, file.content, file.size);
     }
     else if (message == WM_KEYUP)
     {
@@ -158,13 +105,12 @@ LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 
 
 // https://github.com/ayu-theme/ayu-vim/blob/master/colors/ayu.vim
-
-
 // V3f bgColor      = HexColor(0x0F1419);
 V3f bgColor           = HexColor(0x030303);
 
 V3f cursorColor       = HexColor(0xA011A0);
 V3f textColor         = HexColor(0xDDDDDD);
+V3f lineNumberColor   = HexColor(0x666666);
 V3f selectedTextColor = HexColor(0xEEEEEE);
 
 V3f macroColor        = HexColor(0xC686BD);
@@ -185,6 +131,33 @@ float vertices[] = {
     0.0f, 1.0f,    0.0f, 1.0f
 };
 
+void FormatNumber(i32 val, char *buff)
+{
+    while(val != 0) 
+    {
+        *buff = '0' + val % 10;
+        val /= 10;
+        buff++;
+    }
+    *buff = '\0';
+    ReverseString(buff);
+}
+
+void DrawTextBottomRight(float x, float y, char *text)
+{
+    while(*text)
+    {
+        MyBitmap bitmap2 = currentFont->textures[*text];
+        x -= bitmap2.width;
+        Mat4 view2 = CreateViewMatrix(x, y, bitmap2.width, bitmap2.height);
+
+        SetMat4("view", CreateViewMatrix(x, y, bitmap2.width, bitmap2.height));
+        glBindTexture(GL_TEXTURE_2D, currentFont->cachedTextures[*text]);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, ArrayLength(vertices) / FLOATS_PER_VERTEX);
+
+        text++;
+    }
+}
 
 void Draw()
 {
@@ -194,19 +167,16 @@ void Draw()
     zDeltaThisFrame = 0;
 
     
-
     // allows me to set vecrtex coords as 0..width/height, instead of -1..+1
     // 0,0 is bottom left, not top left
     // matrix in code != matrix in math notation, details at https://youtu.be/kBuaCqaCYwE?t=3084
     // in short: rows in math are columns in code
-    Mat4 projection = {
-        2.0f / (f32)clientAreaSize.x, 0, 0, -1,
-        0, 2.0f / (f32)clientAreaSize.y, 0, -1,
-        0, 0, 1, 0,
-        0, 0, 0, 1,
-    };
+    Mat4 projection = CreateViewMatrix(-1, -1, 2.0f / (f32)clientAreaSize.x, 2.0f / (f32)clientAreaSize.y);
+    
+    f32 padding = PX(15.0f);
+    f32 spaceForLineNumbers = PX(40);
+    f32 lineNumberToCode = PX(10);
 
-    f32 padding = 20.0f;
     currentFont = &codeFont;
 
 
@@ -230,13 +200,13 @@ void Draw()
     cursorCol = cursorCol == -1 ? cursorIndex : cursorCol;
 
     UseProgram(primitivesProgram);
-    Mat4 cursorView = 
-    {
-        currentFont->textures['W'].width, 0, 0, padding + cursorCol * currentFont->textures['W'].width,
-        0, currentFont->textMetric.tmHeight, 0, mainLayout.height - padding - (cursorRow + 1) * currentFont->textMetric.tmHeight,
-        0, 0, 1, 0,
-        0, 0, 0, 1,
-    };
+
+    Mat4 cursorView = CreateViewMatrix(
+       /*x*/ spaceForLineNumbers + cursorCol * currentFont->textures['W'].width,
+       /*y*/ mainLayout.height - padding - (cursorRow + 1) * currentFont->textMetric.tmHeight,
+       /*w*/ currentFont->textures['W'].width,
+       /*h*/ currentFont->textMetric.tmHeight
+    );
     SetV3f("color", cursorColor);
     SetMat4("view", cursorView);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, ArrayLength(vertices) / FLOATS_PER_VERTEX);
@@ -250,7 +220,7 @@ void Draw()
 
     f32 startY = clientAreaSize.y - currentFont->textMetric.tmHeight - padding;
 
-    f32 runningX = padding;
+    f32 runningX = spaceForLineNumbers;
     f32 runningY = startY - mainLayout.offsetY;
     i32 currentRow = 0;
     i32 currentCol = 0;
@@ -261,9 +231,15 @@ void Draw()
 
         if(code == '\n')
         {
+            u8 buff[26];
+            FormatNumber(currentRow + 1, buff);
+
+            SetV3f("color", lineNumberColor);
+            DrawTextBottomRight(spaceForLineNumbers - lineNumberToCode, runningY, buff);
+
             currentRow += 1;
             currentCol = 0;
-            runningX = padding;
+            runningX = spaceForLineNumbers;
             runningY -= currentFont->textMetric.tmHeight;
         }
         else if(code >= ' ') 
@@ -271,15 +247,8 @@ void Draw()
 
             MyBitmap bitmap = currentFont->textures[code];
             
-            Mat4 view = 
-            {
-                bitmap.width, 0, 0, runningX,
-                0, bitmap.height, 0, runningY,
-                0, 0, 1, 0,
-                0, 0, 0, 1,
-            };
-            SetMat4("view", view);
-            if (currentRow == cursorRow && currentCol == cursorCol)
+            SetMat4("view", CreateViewMatrix(runningX, runningY, bitmap.width, bitmap.height));
+            if (i == cursorIndex)
                 SetV3f("color", selectedTextColor);
             else
                 SetV3f("color", textColor);
@@ -292,7 +261,16 @@ void Draw()
             currentCol += 1;
         }
     }
+
+    u8 buff[26];
+    FormatNumber(currentRow + 1, buff);
+
+    SetV3f("color", lineNumberColor);
+    DrawTextBottomRight(spaceForLineNumbers - lineNumberToCode, runningY, buff);
+    
     runningY -= (currentFont->textMetric.tmHeight + padding);
+
+
 
     mainLayout.pageHeight = startY - runningY - mainLayout.offsetY;
 
@@ -317,7 +295,7 @@ void WinMainCRTStartup()
     InitFunctions();
     InitFonts();
 
-    file = ReadFileIntoDoubledSizedBuffer("..\\sample.txt");
+    file = ReadFileIntoDoubledSizedBuffer(PATH);
     textProgram = CreateProgram("..\\shaders\\base.vs", "..\\shaders\\base.fs");
     primitivesProgram = CreateProgram("..\\shaders\\primitives.vs", "..\\shaders\\primitives.fs");
 
