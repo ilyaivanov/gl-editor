@@ -7,15 +7,39 @@ typedef struct CursorState
     i32 col;
     i32 row;
     i32 desiredCol;
+
+    i32 selectionStart;
 } CursorState;
 
-CursorState cursor = {0};
+#define SELECTION_NONE -1
+CursorState cursor = {.selectionStart = SELECTION_NONE};
+
+
+i32 GetRowAtPosition(StringBuffer* buffer, i32 pos)
+{
+    i32 res = 0;
+    for (i32 i = pos - 1; i >= 0; i--)
+    {
+        if (*(buffer->content + i) == '\n')
+            res++;
+    }
+    return res;
+}
+i32 GetColAtPosition(StringBuffer* buffer, i32 pos)
+{
+    for (i32 i = pos - 1; i >= 0; i--)
+    {
+        if (*(buffer->content + i) == '\n')
+            return pos - i - 1; 
+    }
+    return pos;
+}
 
 void UpdateCursorPosition(StringBuffer* buffer, i32 newIndex)
 {
     cursor.cursorIndex = newIndex;
 
-    cursor.col = -1;
+    cursor.col = -1; //GetColAtPosition(buffer, newIndex);
     cursor.row = 0;
 
     // There is definitelly a better way, compared to traversing the whole file
@@ -26,12 +50,19 @@ void UpdateCursorPosition(StringBuffer* buffer, i32 newIndex)
             cursor.row++;
 
         if (*(buffer->content + i) == '\n' && cursor.col == -1)
-        {
             cursor.col = cursor.cursorIndex - i - 1;
-        }
     }
     cursor.col = cursor.col == -1 ? cursor.cursorIndex : cursor.col;
 }
+
+void TrackSelection(i32 isSelecting)
+{
+    if(isSelecting && cursor.selectionStart == SELECTION_NONE)
+        cursor.selectionStart = cursor.cursorIndex;
+    else if (!isSelecting && cursor.selectionStart != SELECTION_NONE)
+        cursor.selectionStart = SELECTION_NONE;
+}
+
 
 i32 GetNewLineBefore(StringBuffer* buffer, i32 pos)
 {
@@ -53,8 +84,10 @@ i32 GetNewLineAfter(StringBuffer* buffer, i32 pos)
     return buffer->size;
 }
 
-void MoveCursorUp(StringBuffer* buffer)
+void MoveCursorUp(StringBuffer* buffer, i32 isSelecting)
 {
+    TrackSelection(isSelecting);
+
     i32 prevNewLineIndex = GetNewLineBefore(buffer, cursor.cursorIndex);
 
     i32 prevPrevNewLineIndex = GetNewLineBefore(buffer, prevNewLineIndex);
@@ -65,8 +98,10 @@ void MoveCursorUp(StringBuffer* buffer)
     UpdateCursorPosition(buffer, MinI32(targetIndex, MaxI32(prevNewLineIndex, 0)));
 }
 
-void MoveCursorDown(StringBuffer* buffer)
+void MoveCursorDown(StringBuffer* buffer, i32 isSelecting)
 {
+    TrackSelection(isSelecting);
+
     i32 prevNewLineIndex = GetNewLineBefore(buffer, cursor.cursorIndex);
     
     i32 nextNewLineIndex = GetNewLineAfter(buffer, cursor.cursorIndex);
@@ -78,35 +113,64 @@ void MoveCursorDown(StringBuffer* buffer)
     UpdateCursorPosition(buffer, MinI32(targetIndex, nextNextNewLineIndex));
 }
 
-void MoveCursorLeft(StringBuffer* buffer)
+void MoveCursorLeft(StringBuffer* buffer, i32 isSelecting)
 {
+    TrackSelection(isSelecting);
+
     UpdateCursorPosition(buffer, MaxI32(cursor.cursorIndex - 1, 0));
     cursor.desiredCol = cursor.col;
 }
 
-void MoveCursorRight(StringBuffer* buffer)
+void MoveCursorRight(StringBuffer* buffer, i32 isSelecting)
 {
+    TrackSelection(isSelecting);
+
     UpdateCursorPosition(buffer, MinI32(cursor.cursorIndex + 1, buffer->size));
     cursor.desiredCol = cursor.col;
 }
 
-
-void RemoveCharFromLeft(StringBuffer* buffer)
+void RemoveSelection(StringBuffer *buffer)
 {
-    if(cursor.cursorIndex > 0)
+    i32 from = MinI32(cursor.selectionStart, cursor.cursorIndex);
+    i32 to   = MaxI32(cursor.selectionStart, cursor.cursorIndex);
+    RemoveBufferSegment(buffer, to, from);
+    cursor.selectionStart = SELECTION_NONE;
+    UpdateCursorPosition(buffer, from);
+}
+
+void RemoveCharFromLeft(StringBuffer *buffer)
+{
+    if (cursor.selectionStart != SELECTION_NONE)
     {
-        RemoveCharAt(buffer, cursor.cursorIndex - 1);
-        UpdateCursorPosition(buffer, cursor.cursorIndex - 1);
-        cursor.desiredCol = cursor.col;
+        RemoveSelection(buffer);
+    }
+    else
+    {
+        if (cursor.cursorIndex > 0)
+        {
+            RemoveCharAt(buffer, cursor.cursorIndex - 1);
+            UpdateCursorPosition(buffer, cursor.cursorIndex - 1);
+            cursor.desiredCol = cursor.col;
+
+            cursor.selectionStart = SELECTION_NONE;
+        }
     }
 }
 
-
 void RemoveCurrentChar(StringBuffer* buffer)
 {
-    if(cursor.cursorIndex < buffer->size)
+    if (cursor.selectionStart != SELECTION_NONE)
     {
-        RemoveCharAt(buffer, cursor.cursorIndex);
+        RemoveSelection(buffer);
+    }
+    else 
+    {
+        if(cursor.cursorIndex < buffer->size)
+        {
+            RemoveCharAt(buffer, cursor.cursorIndex);
+
+            cursor.selectionStart = SELECTION_NONE;
+        }
     }
 }
 
@@ -115,4 +179,6 @@ void InsertChartUnderCursor(StringBuffer* buffer, WPARAM ch)
     WPARAM code = ch == '\r' ? '\n' : ch;
     InsertCharAt(buffer, cursor.cursorIndex, code);
     UpdateCursorPosition(buffer, cursor.cursorIndex + 1);
+
+    cursor.selectionStart = SELECTION_NONE;
 }

@@ -59,6 +59,21 @@ void RemoveCharAt(StringBuffer *buffer, i32 at)
     buffer->size--;
 }
 
+void RemoveBufferSegment(StringBuffer *buffer, i32 from, i32 to)
+{
+    char * dest = buffer->content + to;
+    char * source = buffer->content + from + 1;
+    for(int i = from; i < buffer->size; i++)
+    {
+        *dest = *source;
+        dest++;
+        source++;
+    }
+
+    i32 bytesRemoved = from - to + 1;
+    buffer->size -= bytesRemoved;
+}
+
 
 StringBuffer ReadFileIntoDoubledSizedBuffer(char *path)
 {

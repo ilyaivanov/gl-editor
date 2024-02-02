@@ -15,7 +15,7 @@ float SYSTEM_SCALE = 1;
 #define HexColor(hex) {(float)((hex >> 16) & 0xff) / 255.0f, \
                        (float)((hex >>  8) & 0xff) / 255.0f, \
                        (float)((hex >>  0) & 0xff) / 255.0f}
-
+#define IsKeyPressed(key) (GetKeyState(key) & 0b10000000)
 
 i32 isRunning = 1;
 V2i clientAreaSize = {0};
@@ -28,6 +28,10 @@ f32 zDeltaThisFrame;
 
 i32 isEditMode = 0;
 StringBuffer file;
+
+f32 padding;
+f32 spaceForLineNumbers;
+f32 lineNumberToCode;
 
 void Draw();
 
@@ -53,6 +57,10 @@ LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
         HDC dc = GetDC(window);
         SYSTEM_SCALE = (float)GetDeviceCaps(dc, LOGPIXELSY) / (float)USER_DEFAULT_SCREEN_DPI;
 
+        padding = PX(15.0f);
+        spaceForLineNumbers = PX(40);
+        lineNumberToCode = PX(10);
+
         OnResize();
         InvalidateRect(window, NULL, TRUE);
     }
@@ -67,18 +75,18 @@ LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
     else if (message == WM_KEYDOWN)
     {
         if(wParam == VK_DOWN)
-            MoveCursorDown(&file);
+            MoveCursorDown(&file, IsKeyPressed(VK_SHIFT));
         else if(wParam == VK_UP)
-            MoveCursorUp(&file);
+            MoveCursorUp(&file, IsKeyPressed(VK_SHIFT));
         else if(wParam == VK_LEFT)
-            MoveCursorLeft(&file);
+            MoveCursorLeft(&file, IsKeyPressed(VK_SHIFT));
         else if(wParam == VK_RIGHT)
-            MoveCursorRight(&file);
+            MoveCursorRight(&file, IsKeyPressed(VK_SHIFT));
         else if (wParam == VK_BACK)
             RemoveCharFromLeft(&file);
         else if (wParam == VK_DELETE)
             RemoveCurrentChar(&file);
-        else if (wParam == 'S' && (GetKeyState(VK_CONTROL) & 0b10000000))
+        else if (wParam == 'S' && IsKeyPressed(VK_CONTROL))
             WriteMyFile(PATH, file.content, file.size);
     }
     else if (message == WM_KEYUP)
@@ -103,6 +111,7 @@ LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 V3f bgColor           = HexColor(0x030303);
 
 V3f cursorColor       = HexColor(0xA011A0);
+V3f selectionColor    = HexColor(0x601160);
 V3f textColor         = HexColor(0xDDDDDD);
 V3f lineNumberColor   = HexColor(0x666666);
 V3f selectedTextColor = HexColor(0xEEEEEE);
@@ -137,7 +146,7 @@ void FormatNumber(i32 val, char *buff)
     ReverseString(buff);
 }
 
-void DrawTextBottomRight(float x, float y, char *text)
+void DrawTextBottomRight(float x, float y, char *text, V3f color)
 {
     while(*text)
     {
@@ -146,11 +155,53 @@ void DrawTextBottomRight(float x, float y, char *text)
         Mat4 view2 = CreateViewMatrix(x, y, bitmap2.width, bitmap2.height);
 
         SetMat4("view", CreateViewMatrix(x, y, bitmap2.width, bitmap2.height));
+        SetV3f("color", color);
         glBindTexture(GL_TEXTURE_2D, currentFont->cachedTextures[*text]);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, ArrayLength(vertices) / FLOATS_PER_VERTEX);
 
         text++;
     }
+}
+
+void DrawSquareAt(i32 row, i32 col, V3f color)
+{
+    Mat4 cursorView = CreateViewMatrix(
+        /*x*/ spaceForLineNumbers + col * currentFont->textures['W'].width,
+        /*y*/ mainLayout.height - padding - (row + 1) * currentFont->textMetric.tmHeight - mainLayout.offsetY,
+        /*w*/ currentFont->textures['W'].width,
+        /*h*/ currentFont->textMetric.tmHeight
+    );
+    SetV3f("color", color);
+    SetMat4("view", cursorView);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, ArrayLength(vertices) / FLOATS_PER_VERTEX);
+}
+
+void DrawCursor(StringBuffer *buffer)
+{
+
+    if(cursor.selectionStart > -1)
+    {
+        i32 from = MinI32(cursor.selectionStart, cursor.cursorIndex);
+        i32 to   = MaxI32(cursor.selectionStart, cursor.cursorIndex);
+        
+        i32 row = GetRowAtPosition(buffer, from);
+        i32 col = GetColAtPosition(buffer, from);
+
+        for(int i = from; i <= to; i++)
+        {
+            DrawSquareAt(row, col, selectionColor);
+            
+            if(*(buffer->content + i) == '\n')
+            {
+                row++;
+                col = 0;
+            }
+            else 
+                col++;
+        }
+    }
+
+    DrawSquareAt(cursor.row, cursor.col, cursorColor);
 }
 
 void Draw()
@@ -167,26 +218,12 @@ void Draw()
     // in short: rows in math are columns in code
     Mat4 projection = CreateViewMatrix(-1, -1, 2.0f / (f32)clientAreaSize.x, 2.0f / (f32)clientAreaSize.y);
     
-    f32 padding = PX(15.0f);
-    f32 spaceForLineNumbers = PX(40);
-    f32 lineNumberToCode = PX(10);
-
     currentFont = &codeFont;
-
-
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
+   
     UseProgram(primitivesProgram);
-
-    Mat4 cursorView = CreateViewMatrix(
-       /*x*/ spaceForLineNumbers + cursor.col * currentFont->textures['W'].width,
-       /*y*/ mainLayout.height - padding - (cursor.row + 1) * currentFont->textMetric.tmHeight - mainLayout.offsetY,
-       /*w*/ currentFont->textures['W'].width,
-       /*h*/ currentFont->textMetric.tmHeight
-    );
-    SetV3f("color", cursorColor);
-    SetMat4("view", cursorView);
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, ArrayLength(vertices) / FLOATS_PER_VERTEX);
+    SetMat4("projection", projection);
+    DrawCursor(&file);
 
     UseProgram(textProgram);
     SetMat4("projection", projection);
@@ -199,6 +236,8 @@ void Draw()
     f32 runningY = startY - mainLayout.offsetY;
     i32 currentRow = 0;
     i32 currentCol = 0;
+    u8 lineNumberBuff[26];
+
     for(i32 i = 0; i < file.size; i++)
     {
         u8 code = *(file.content + i);
@@ -206,11 +245,8 @@ void Draw()
 
         if(code == '\n')
         {
-            u8 buff[26];
-            FormatNumber(currentRow + 1, buff);
-
-            SetV3f("color", lineNumberColor);
-            DrawTextBottomRight(spaceForLineNumbers - lineNumberToCode, runningY, buff);
+            FormatNumber(currentRow + 1, lineNumberBuff);
+            DrawTextBottomRight(spaceForLineNumbers - lineNumberToCode, runningY, lineNumberBuff, lineNumberColor);
 
             currentRow += 1;
             currentCol = 0;
@@ -237,15 +273,10 @@ void Draw()
         }
     }
 
-    u8 buff[26];
-    FormatNumber(currentRow + 1, buff);
-
-    SetV3f("color", lineNumberColor);
-    DrawTextBottomRight(spaceForLineNumbers - lineNumberToCode, runningY, buff);
+    FormatNumber(currentRow + 1, lineNumberBuff);
+    DrawTextBottomRight(spaceForLineNumbers - lineNumberToCode, runningY, lineNumberBuff, lineNumberColor);
     
     runningY -= (currentFont->textMetric.tmHeight + padding);
-
-
 
     mainLayout.pageHeight = startY - runningY - mainLayout.offsetY + padding;
 
