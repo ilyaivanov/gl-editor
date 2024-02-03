@@ -63,31 +63,48 @@ void TrackSelection(i32 isSelecting)
         cursor.selectionStart = SELECTION_NONE;
 }
 
-
-i32 GetNewLineBefore(StringBuffer* buffer, i32 pos)
+i32 GetSymbolIndexBeforeExclusive(StringBuffer* buffer, i32 pos, u8 symbol)
 {
     for (int i = pos - 1; i >= 0; i--)
     {
-        if (*(buffer->content + i) == '\n')
+        if (*(buffer->content + i) == symbol)
+            return i;
+    }
+    return -1;
+}
+i32 GetSymbolIndexAfterInclusive(StringBuffer* buffer, i32 pos, u8 symbol)
+{
+    for (int i = pos; i < buffer->size; i++)
+    {
+        if (*(buffer->content + i) == symbol)
             return i;
     }
     return -1;
 }
 
-i32 GetNewLineAfter(StringBuffer* buffer, i32 pos)
+inline i32 GetNewLineBefore(StringBuffer* buffer, i32 pos)
 {
-    for (int i = pos; i < buffer->size; i++)
-    {
-        if (*(buffer->content + i) == '\n')
-            return i;
-    }
-    return buffer->size;
+    return GetSymbolIndexBeforeExclusive(buffer, pos, '\n');
 }
 
-void MoveCursorUp(StringBuffer* buffer, i32 isSelecting)
+i32 GetNewLineAfter(StringBuffer* buffer, i32 pos)
 {
-    TrackSelection(isSelecting);
+    return GetSymbolIndexAfterInclusive(buffer, pos, '\n');
+}
 
+typedef enum CursorMovement
+{
+    Left, Right, Down, Up,
+    LineEnd, LineStart,
+    FileStart, FileEnd,
+    WordJumpRight, WordJumpLeft,
+
+} CursorMovement;
+
+
+
+i32 MoveCursorUp(StringBuffer* buffer)
+{
     i32 prevNewLineIndex = GetNewLineBefore(buffer, cursor.cursorIndex);
 
     i32 prevPrevNewLineIndex = GetNewLineBefore(buffer, prevNewLineIndex);
@@ -95,12 +112,13 @@ void MoveCursorUp(StringBuffer* buffer, i32 isSelecting)
     i32 currentOffset = cursor.cursorIndex - prevNewLineIndex;
     i32 targetIndex = prevPrevNewLineIndex + currentOffset + (cursor.desiredCol - cursor.col);
 
-    UpdateCursorPosition(buffer, MinI32(targetIndex, MaxI32(prevNewLineIndex, 0)));
+    return MinI32(targetIndex, MaxI32(prevNewLineIndex, 0));
 }
 
-void MoveCursorDown(StringBuffer* buffer, i32 isSelecting)
+i32 MoveCursorDown(StringBuffer* buffer)
 {
-    TrackSelection(isSelecting);
+    if(cursor.cursorIndex == buffer->size)
+        return cursor.cursorIndex;
 
     i32 prevNewLineIndex = GetNewLineBefore(buffer, cursor.cursorIndex);
     
@@ -108,25 +126,77 @@ void MoveCursorDown(StringBuffer* buffer, i32 isSelecting)
 
     i32 nextNextNewLineIndex = GetNewLineAfter(buffer, nextNewLineIndex + 1);
 
+    if(nextNextNewLineIndex == -1)
+        nextNextNewLineIndex = buffer->size;     
+
     i32 currentOffset = cursor.cursorIndex - prevNewLineIndex;
     i32 targetIndex = nextNewLineIndex + currentOffset + (cursor.desiredCol - cursor.col);
-    UpdateCursorPosition(buffer, MinI32(targetIndex, nextNextNewLineIndex));
+
+    return MinI32(targetIndex, nextNextNewLineIndex);
 }
 
-void MoveCursorLeft(StringBuffer* buffer, i32 isSelecting)
+#define IsWhiteSpace(ch) (ch == ' ' || ch == '\n')
+
+i32 JumpWordRight(StringBuffer* buffer)
+{
+    i32 isInsideSpace = 0;
+    for (int i = cursor.cursorIndex; i < buffer->size; i++)
+    {
+        u8 ch = *(buffer->content + i);
+        if (IsWhiteSpace(ch))
+            isInsideSpace = 1;
+        
+        // return first non-space char after space section
+        if (!IsWhiteSpace(ch) && isInsideSpace)
+            return i;
+    }
+    return buffer->size;
+}
+
+i32 JumpWordLeft(StringBuffer* buffer)
+{
+    i32 isInsideSpace = 0;
+    for (int i = cursor.cursorIndex - 1; i >=0; i--)
+    {
+        u8 ch = *(buffer->content + i);
+        if (IsWhiteSpace(ch))
+            isInsideSpace = 1;
+        
+        // return first non-space char after space section
+        if (!IsWhiteSpace(ch) && isInsideSpace)
+            return i;
+    }
+    return buffer->size;
+}
+
+void MoveCursor(StringBuffer* buffer, CursorMovement movement, i32 isSelecting)
 {
     TrackSelection(isSelecting);
 
-    UpdateCursorPosition(buffer, MaxI32(cursor.cursorIndex - 1, 0));
-    cursor.desiredCol = cursor.col;
-}
+    i32 nextCursor = 0;
 
-void MoveCursorRight(StringBuffer* buffer, i32 isSelecting)
-{
-    TrackSelection(isSelecting);
+    if(movement == Left)
+        nextCursor = cursor.cursorIndex - 1;
+    else if (movement == Right)
+        nextCursor = cursor.cursorIndex + 1;
+    else if (movement == Up)
+        nextCursor = MoveCursorUp(buffer);
+    else if (movement == Down)
+        nextCursor = MoveCursorDown(buffer);
+    else if (movement == LineEnd)
+        nextCursor = GetNewLineAfter(buffer, cursor.cursorIndex);
+    else if (movement == LineStart)
+        nextCursor = GetNewLineBefore(buffer, cursor.cursorIndex) + 1;
+    else if (movement == WordJumpRight)
+        nextCursor = JumpWordRight(buffer);
+    else if (movement == WordJumpLeft)
+        nextCursor = JumpWordLeft(buffer);
 
-    UpdateCursorPosition(buffer, MinI32(cursor.cursorIndex + 1, buffer->size));
-    cursor.desiredCol = cursor.col;
+    
+    UpdateCursorPosition(buffer, ClampI32(nextCursor, 0, buffer->size));
+    
+    if(movement != Up && movement != Down)
+        cursor.desiredCol = cursor.col;
 }
 
 void RemoveSelection(StringBuffer *buffer)
@@ -138,7 +208,7 @@ void RemoveSelection(StringBuffer *buffer)
     UpdateCursorPosition(buffer, from);
 }
 
-void RemoveCharFromLeft(StringBuffer *buffer)
+void RemoveCharFromLeft(StringBuffer *buffer)\
 {
     if (cursor.selectionStart != SELECTION_NONE)
     {
@@ -155,6 +225,8 @@ void RemoveCharFromLeft(StringBuffer *buffer)
             cursor.selectionStart = SELECTION_NONE;
         }
     }
+
+    cursor.desiredCol = cursor.col;
 }
 
 void RemoveCurrentChar(StringBuffer* buffer)
@@ -172,6 +244,8 @@ void RemoveCurrentChar(StringBuffer* buffer)
             cursor.selectionStart = SELECTION_NONE;
         }
     }
+
+    cursor.desiredCol = cursor.col;
 }
 
 void InsertChartUnderCursor(StringBuffer* buffer, WPARAM ch)

@@ -24,7 +24,7 @@ Layout mainLayout = {0};
 
 f32 zDeltaThisFrame;
 
-#define PATH "..\\sample.txt"
+#define PATH "..\\string.c"
 
 i32 isEditMode = 0;
 StringBuffer file;
@@ -75,19 +75,37 @@ LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
     else if (message == WM_KEYDOWN)
     {
         if(wParam == VK_DOWN)
-            MoveCursorDown(&file, IsKeyPressed(VK_SHIFT));
+            MoveCursor(&file, Down, IsKeyPressed(VK_SHIFT));
         else if(wParam == VK_UP)
-            MoveCursorUp(&file, IsKeyPressed(VK_SHIFT));
+            MoveCursor(&file, Up, IsKeyPressed(VK_SHIFT));
+        else if(wParam == VK_LEFT && IsKeyPressed(VK_CONTROL))
+            MoveCursor(&file, WordJumpLeft, IsKeyPressed(VK_SHIFT));
         else if(wParam == VK_LEFT)
-            MoveCursorLeft(&file, IsKeyPressed(VK_SHIFT));
+            MoveCursor(&file, Left, IsKeyPressed(VK_SHIFT));
+        else if(wParam == VK_RIGHT && IsKeyPressed(VK_CONTROL))
+            MoveCursor(&file, WordJumpRight, IsKeyPressed(VK_SHIFT));
         else if(wParam == VK_RIGHT)
-            MoveCursorRight(&file, IsKeyPressed(VK_SHIFT));
+            MoveCursor(&file, Right, IsKeyPressed(VK_SHIFT));
+        else if(wParam == VK_END)
+            MoveCursor(&file, LineEnd, IsKeyPressed(VK_SHIFT));
+        else if(wParam == VK_HOME)
+            MoveCursor(&file, LineStart, IsKeyPressed(VK_SHIFT));            
         else if (wParam == VK_BACK)
             RemoveCharFromLeft(&file);
         else if (wParam == VK_DELETE)
             RemoveCurrentChar(&file);
         else if (wParam == 'S' && IsKeyPressed(VK_CONTROL))
             WriteMyFile(PATH, file.content, file.size);
+
+        f32 rowHeight = currentFont->textMetric.tmHeight;
+        f32 cursorPos = cursor.row * rowHeight + padding;
+
+        if(cursorPos + mainLayout.offsetY + rowHeight * 5 > clientAreaSize.y)
+            mainLayout.offsetY = -(cursorPos - clientAreaSize.y + rowHeight * 5);
+
+        if(cursorPos - rowHeight * 5 < -mainLayout.offsetY)
+            mainLayout.offsetY = -(cursorPos - rowHeight * 5);
+
     }
     else if (message == WM_KEYUP)
     {
