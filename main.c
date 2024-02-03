@@ -7,6 +7,15 @@
 #include "font.c"
 #include "ui.c"
 #include "string.c"
+
+
+// this is used by editor for PageDown\PageUp to determine how many rows there are in the page
+// interesting to think about how to solve this
+Layout mainLayout = {0};
+
+FontData uiFont   = {.size = 12, .name = "Segoe UI"};
+FontData codeFont = {.size = 14, .name = "Consolas"};
+
 #include "editor.c"
 
 float SYSTEM_SCALE = 1;
@@ -20,7 +29,6 @@ float SYSTEM_SCALE = 1;
 i32 isRunning = 1;
 V2i clientAreaSize = {0};
 
-Layout mainLayout = {0};
 Layout footer = {0};
 
 f32 zDeltaThisFrame;
@@ -36,8 +44,7 @@ f32 lineNumberToCode;
 f32 footerHeight;
 f32 footerPadding;
 
-FontData uiFont   = {.size = 42, .name = "Segoe UI"};
-FontData codeFont = {.size = 14, .name = "Consolas"};
+
 
 void Draw();
 
@@ -117,7 +124,11 @@ LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
         else if(wParam == VK_END)
             MoveCursor(&file, LineEnd, IsKeyPressed(VK_SHIFT));
         else if(wParam == VK_HOME)
-            MoveCursor(&file, LineStart, IsKeyPressed(VK_SHIFT));            
+            MoveCursor(&file, LineStart, IsKeyPressed(VK_SHIFT));       
+        else if(wParam == VK_NEXT)
+            MoveCursor(&file, PageDown, IsKeyPressed(VK_SHIFT));            
+        else if(wParam == VK_PRIOR)
+            MoveCursor(&file, PageUp, IsKeyPressed(VK_SHIFT));            
         else if (wParam == VK_BACK)
             RemoveCharFromLeft(&file);
         else if (wParam == VK_DELETE)
@@ -155,6 +166,7 @@ LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 // https://github.com/ayu-theme/ayu-vim/blob/master/colors/ayu.vim
 // V3f bgColor      = HexColor(0x0F1419);
 V3f bgColor           = HexColor(0x030303);
+V3f footerColor       = HexColor(0x181818);
 
 V3f cursorColor       = HexColor(0xA011A0);
 V3f selectionColor    = HexColor(0x601160);
@@ -199,7 +211,6 @@ void DrawTextBottomRight(float x, float y, char *text, V3f color)
     {
         MyBitmap bitmap2 = currentFont->textures[*text];
         x -= bitmap2.width;
-        Mat4 view2 = CreateViewMatrix(x, y, bitmap2.width, bitmap2.height);
 
         SetMat4("view", CreateViewMatrix(x, y, bitmap2.width, bitmap2.height));
         SetV3f("color", color);
@@ -209,6 +220,8 @@ void DrawTextBottomRight(float x, float y, char *text, V3f color)
         text++;
     }
 }
+
+
 
 void DrawSquareAt(i32 row, i32 col, V3f color)
 {
@@ -225,7 +238,6 @@ void DrawSquareAt(i32 row, i32 col, V3f color)
 
 void DrawCursor(StringBuffer *buffer)
 {
-
     if(cursor.selectionStart > -1)
     {
         i32 from = MinI32(cursor.selectionStart, cursor.cursorIndex);
@@ -253,12 +265,23 @@ void DrawCursor(StringBuffer *buffer)
 
 void DrawFooter()
 {
-    UseProgram(textProgram);
+    
+    UseProgram(primitivesProgram);
     Mat4 projection = CreateViewMatrix(-1, -1, 2.0f / (f32)clientAreaSize.x, 2.0f / (f32)clientAreaSize.y);
     SetMat4("projection", projection);
 
+    SetV3f("color", footerColor);
+    SetMat4("view", CreateViewMatrix(footer.x, footer.y, footer.width, footer.height));
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, ArrayLength(vertices) / FLOATS_PER_VERTEX);
+
+
+
+    UseProgram(textProgram);
+    SetMat4("projection", projection);
+    SetV3f("color", uiFadedColor);
+
     currentFont = &uiFont;
-    u8* label = "main.c";
+    u8* label = PATH;
     f32 x = footerPadding;
     f32 y = footer.height / 2 - currentFont->textMetric.tmHeight / 2;
 
@@ -270,7 +293,6 @@ void DrawFooter()
         MyBitmap bitmap = currentFont->textures[code];
         
         SetMat4("view", CreateViewMatrix(x, y, bitmap.width, bitmap.height));
-        SetV3f("color", uiFadedColor);
 
         glBindTexture(GL_TEXTURE_2D, currentFont->cachedTextures[code]);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, ArrayLength(vertices) / FLOATS_PER_VERTEX);
@@ -279,6 +301,19 @@ void DrawFooter()
 
         label++;
     }
+
+    if(1)
+    {
+        u8 asterisk = '*';
+        MyBitmap bitmap = currentFont->textures[asterisk];
+
+        SetMat4("view", CreateViewMatrix(x, y, bitmap.width, bitmap.height));
+
+        glBindTexture(GL_TEXTURE_2D, currentFont->cachedTextures[asterisk]);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, ArrayLength(vertices) / FLOATS_PER_VERTEX);
+    }
+
+
 }
 
 void Draw()
@@ -319,7 +354,6 @@ void Draw()
 
     UseProgram(textProgram);
     SetMat4("projection", projection);
-    SetV3f("color", textColor);
 
 
     f32 startY = mainLayout.height + mainLayout.y - currentFont->textMetric.tmHeight - padding;

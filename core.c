@@ -71,6 +71,11 @@ inline i32 MaxI32(i32 v1, i32 v2)
     return v2;
 }
 
+inline i32 AbsI32(i32 val)
+{
+    //TODO: bit manipulation?
+    return val < 0 ? -val : val;
+}
 
 inline i32 MinI32(i32 v1, i32 v2)
 {

@@ -97,42 +97,53 @@ typedef enum CursorMovement
     Left, Right, Down, Up,
     LineEnd, LineStart,
     FileStart, FileEnd,
+    PageDown, PageUp,
     WordJumpRight, WordJumpLeft,
 
 } CursorMovement;
 
 
+//PageUp/PageDown
 
-i32 MoveCursorUp(StringBuffer* buffer)
+i32 MoveByLines(StringBuffer* buffer, i32 linesCountToMove)
 {
-    i32 prevNewLineIndex = GetNewLineBefore(buffer, cursor.cursorIndex);
+    i32 direction = linesCountToMove < 0 ? -1 : 1;
 
-    i32 prevPrevNewLineIndex = GetNewLineBefore(buffer, prevNewLineIndex);
+    //increasing by one because I don't want to count current line offset of going backwards
+    if(linesCountToMove < 0)
+    {
+        linesCountToMove -= 1;
 
-    i32 currentOffset = cursor.cursorIndex - prevNewLineIndex;
-    i32 targetIndex = prevPrevNewLineIndex + currentOffset + (cursor.desiredCol - cursor.col);
+        //when cursor is looking at new line, that char visually is the next line
+        if(*(buffer->content + cursor.cursorIndex) == '\n')
+            linesCountToMove -= 1;
+    }
 
-    return MinI32(targetIndex, MaxI32(prevNewLineIndex, 0));
-}
+    linesCountToMove = AbsI32(linesCountToMove);
 
-i32 MoveCursorDown(StringBuffer* buffer)
-{
-    if(cursor.cursorIndex == buffer->size)
-        return cursor.cursorIndex;
+    i32 targetLineIndex = cursor.cursorIndex;
+    while(targetLineIndex >= 0 && targetLineIndex <= buffer->size)
+    {
+        if(*(buffer->content + targetLineIndex) == '\n')
+        {
+            linesCountToMove--;
+            if(linesCountToMove == 0)
+                break;
+        }
 
-    i32 prevNewLineIndex = GetNewLineBefore(buffer, cursor.cursorIndex);
+        targetLineIndex += direction;
+    }
+
+    i32 targetLineEnd = GetNewLineAfter(buffer, targetLineIndex + 1);
     
-    i32 nextNewLineIndex = GetNewLineAfter(buffer, cursor.cursorIndex);
+    if(targetLineEnd == -1)
+        targetLineEnd = buffer->size;  
 
-    i32 nextNextNewLineIndex = GetNewLineAfter(buffer, nextNewLineIndex + 1);
+    i32 currentOffset = cursor.cursorIndex - GetNewLineBefore(buffer, cursor.cursorIndex);
 
-    if(nextNextNewLineIndex == -1)
-        nextNextNewLineIndex = buffer->size;     
+    i32 targetIndex = targetLineIndex + currentOffset + (cursor.desiredCol - cursor.col);
 
-    i32 currentOffset = cursor.cursorIndex - prevNewLineIndex;
-    i32 targetIndex = nextNewLineIndex + currentOffset + (cursor.desiredCol - cursor.col);
-
-    return MinI32(targetIndex, nextNextNewLineIndex);
+    return MinI32(targetIndex, targetLineEnd);
 }
 
 #define IsWhiteSpace(ch) (ch == ' ' || ch == '\n')
@@ -180,9 +191,13 @@ void MoveCursor(StringBuffer* buffer, CursorMovement movement, i32 isSelecting)
     else if (movement == Right)
         nextCursor = cursor.cursorIndex + 1;
     else if (movement == Up)
-        nextCursor = MoveCursorUp(buffer);
+        nextCursor = MoveByLines(buffer, -1);
     else if (movement == Down)
-        nextCursor = MoveCursorDown(buffer);
+        nextCursor = MoveByLines(buffer, 1);
+    else if (movement == PageDown)
+        nextCursor = MoveByLines(buffer, mainLayout.height / codeFont.textMetric.tmHeight);
+    else if (movement == PageUp)
+        nextCursor = MoveByLines(buffer, -(mainLayout.height / codeFont.textMetric.tmHeight));
     else if (movement == LineEnd)
         nextCursor = GetNewLineAfter(buffer, cursor.cursorIndex);
     else if (movement == LineStart)
@@ -199,7 +214,7 @@ void MoveCursor(StringBuffer* buffer, CursorMovement movement, i32 isSelecting)
     
     UpdateCursorPosition(buffer, ClampI32(nextCursor, 0, buffer->size));
     
-    if(movement != Up && movement != Down)
+    if(movement != Up && movement != Down && movement != PageDown && movement != PageUp)
         cursor.desiredCol = cursor.col;
 }
 
