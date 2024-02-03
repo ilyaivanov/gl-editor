@@ -86,6 +86,10 @@ LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
             MoveCursor(&file, WordJumpRight, IsKeyPressed(VK_SHIFT));
         else if(wParam == VK_RIGHT)
             MoveCursor(&file, Right, IsKeyPressed(VK_SHIFT));
+        else if(wParam == VK_END && IsKeyPressed(VK_CONTROL))
+            MoveCursor(&file, FileEnd, IsKeyPressed(VK_SHIFT));
+        else if(wParam == VK_HOME && IsKeyPressed(VK_CONTROL))
+            MoveCursor(&file, FileStart, IsKeyPressed(VK_SHIFT)); 
         else if(wParam == VK_END)
             MoveCursor(&file, LineEnd, IsKeyPressed(VK_SHIFT));
         else if(wParam == VK_HOME)

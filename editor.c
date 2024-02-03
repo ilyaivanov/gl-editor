@@ -191,6 +191,10 @@ void MoveCursor(StringBuffer* buffer, CursorMovement movement, i32 isSelecting)
         nextCursor = JumpWordRight(buffer);
     else if (movement == WordJumpLeft)
         nextCursor = JumpWordLeft(buffer);
+    else if (movement == FileEnd)
+        nextCursor = buffer->size;
+    else if (movement == FileStart)
+        nextCursor = 0;
 
     
     UpdateCursorPosition(buffer, ClampI32(nextCursor, 0, buffer->size));
