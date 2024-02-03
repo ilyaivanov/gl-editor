@@ -21,6 +21,7 @@ i32 isRunning = 1;
 V2i clientAreaSize = {0};
 
 Layout mainLayout = {0};
+Layout footer = {0};
 
 f32 zDeltaThisFrame;
 
@@ -32,15 +33,42 @@ StringBuffer file;
 f32 padding;
 f32 spaceForLineNumbers;
 f32 lineNumberToCode;
+f32 footerHeight;
+f32 footerPadding;
+
+FontData uiFont   = {.size = 42, .name = "Segoe UI"};
+FontData codeFont = {.size = 14, .name = "Consolas"};
 
 void Draw();
+
+
+void InitConstants()
+{
+    padding = PX(15.0f);
+    spaceForLineNumbers = PX(40);
+    lineNumberToCode = PX(10);
+    footerPadding = PX(5);
+    footerHeight = uiFont.textMetric.tmHeight + footerPadding;
+}
+
+void InitFonts()
+{
+    InitFont(&uiFont);
+    InitFont(&codeFont);
+}
 
 void OnResize()
 {
     glViewport(0, 0, clientAreaSize.x, clientAreaSize.y);
 
-    mainLayout.height = clientAreaSize.y;
+    mainLayout.height = clientAreaSize.y - footerHeight;
     mainLayout.width = clientAreaSize.x;
+    mainLayout.y = footerHeight;
+
+    footer.x = 0;
+    footer.y = 0;
+    footer.height = footerHeight;
+    footer.width = clientAreaSize.x;
 }
 
 LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
@@ -56,10 +84,6 @@ LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 
         HDC dc = GetDC(window);
         SYSTEM_SCALE = (float)GetDeviceCaps(dc, LOGPIXELSY) / (float)USER_DEFAULT_SCREEN_DPI;
-
-        padding = PX(15.0f);
-        spaceForLineNumbers = PX(40);
-        lineNumberToCode = PX(10);
 
         OnResize();
         InvalidateRect(window, NULL, TRUE);
@@ -101,11 +125,11 @@ LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
         else if (wParam == 'S' && IsKeyPressed(VK_CONTROL))
             WriteMyFile(PATH, file.content, file.size);
 
-        f32 rowHeight = currentFont->textMetric.tmHeight;
+        f32 rowHeight = codeFont.textMetric.tmHeight;
         f32 cursorPos = cursor.row * rowHeight + padding;
 
-        if(cursorPos + mainLayout.offsetY + rowHeight * 5 > clientAreaSize.y)
-            mainLayout.offsetY = -(cursorPos - clientAreaSize.y + rowHeight * 5);
+        if(cursorPos + mainLayout.offsetY + rowHeight * 5 > mainLayout.height)
+            mainLayout.offsetY = -(cursorPos - mainLayout.height + rowHeight * 5);
 
         if(cursorPos - rowHeight * 5 < -mainLayout.offsetY)
             mainLayout.offsetY = -(cursorPos - rowHeight * 5);
@@ -135,6 +159,7 @@ V3f bgColor           = HexColor(0x030303);
 V3f cursorColor       = HexColor(0xA011A0);
 V3f selectionColor    = HexColor(0x601160);
 V3f textColor         = HexColor(0xDDDDDD);
+V3f uiFadedColor      = HexColor(0x888888);
 V3f lineNumberColor   = HexColor(0x666666);
 V3f selectedTextColor = HexColor(0xEEEEEE);
 
@@ -189,7 +214,7 @@ void DrawSquareAt(i32 row, i32 col, V3f color)
 {
     Mat4 cursorView = CreateViewMatrix(
         /*x*/ spaceForLineNumbers + col * currentFont->textures['W'].width,
-        /*y*/ mainLayout.height - padding - (row + 1) * currentFont->textMetric.tmHeight - mainLayout.offsetY,
+        /*y*/ mainLayout.height + mainLayout.y - padding - (row + 1) * currentFont->textMetric.tmHeight - mainLayout.offsetY,
         /*w*/ currentFont->textures['W'].width,
         /*h*/ currentFont->textMetric.tmHeight
     );
@@ -226,6 +251,36 @@ void DrawCursor(StringBuffer *buffer)
     DrawSquareAt(cursor.row, cursor.col, cursorColor);
 }
 
+void DrawFooter()
+{
+    UseProgram(textProgram);
+    Mat4 projection = CreateViewMatrix(-1, -1, 2.0f / (f32)clientAreaSize.x, 2.0f / (f32)clientAreaSize.y);
+    SetMat4("projection", projection);
+
+    currentFont = &uiFont;
+    u8* label = "main.c";
+    f32 x = footerPadding;
+    f32 y = footer.height / 2 - currentFont->textMetric.tmHeight / 2;
+
+    while(*label)
+    {
+        u8 code = *(label);
+        u8 nextCode = *(label + 1);
+
+        MyBitmap bitmap = currentFont->textures[code];
+        
+        SetMat4("view", CreateViewMatrix(x, y, bitmap.width, bitmap.height));
+        SetV3f("color", uiFadedColor);
+
+        glBindTexture(GL_TEXTURE_2D, currentFont->cachedTextures[code]);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, ArrayLength(vertices) / FLOATS_PER_VERTEX);
+
+        x += bitmap.width + GetKerningValue(code, nextCode);
+
+        label++;
+    }
+}
+
 void Draw()
 {
     if(mainLayout.pageHeight > mainLayout.height)
@@ -243,16 +298,31 @@ void Draw()
     currentFont = &codeFont;
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
    
+   
+    glEnable(GL_SCISSOR_TEST);
+    glScissor(mainLayout.x, mainLayout.y, mainLayout.width, mainLayout.height);
+
+
     UseProgram(primitivesProgram);
     SetMat4("projection", projection);
+
+        
+    // SetV3f("color", (V3f){0.1f, 0.2f, 0.1f});
+    // SetMat4("view", CreateViewMatrix(mainLayout.x, mainLayout.y, mainLayout.width, mainLayout.height));
+    // glDrawArrays(GL_TRIANGLE_STRIP, 0, ArrayLength(vertices) / FLOATS_PER_VERTEX);
+
     DrawCursor(&file);
+    // SetV3f("color", (V3f){0.5f, 0.3f, 0.3f});
+    // SetMat4("view", CreateViewMatrix(footer.x, footer.y, footer.width, footer.height));
+    // glDrawArrays(GL_TRIANGLE_STRIP, 0, ArrayLength(vertices) / FLOATS_PER_VERTEX);
+
 
     UseProgram(textProgram);
     SetMat4("projection", projection);
     SetV3f("color", textColor);
 
 
-    f32 startY = clientAreaSize.y - currentFont->textMetric.tmHeight - padding;
+    f32 startY = mainLayout.height + mainLayout.y - currentFont->textMetric.tmHeight - padding;
 
     f32 runningX = spaceForLineNumbers;
     f32 runningY = startY - mainLayout.offsetY;
@@ -298,6 +368,8 @@ void Draw()
     FormatNumber(currentRow + 1, lineNumberBuff);
     DrawTextBottomRight(spaceForLineNumbers - lineNumberToCode, runningY, lineNumberBuff, lineNumberColor);
     
+    glDisable(GL_SCISSOR_TEST);
+    
     runningY -= (currentFont->textMetric.tmHeight + padding);
 
     mainLayout.pageHeight = startY - runningY - mainLayout.offsetY + padding;
@@ -308,6 +380,9 @@ void Draw()
     SetV3f("color", (V3f){0.3f, 0.3f, 0.3f});
     SetMat4("view", scrollView);
     glDrawArrays(GL_TRIANGLE_STRIP, 0, ArrayLength(vertices) / FLOATS_PER_VERTEX);
+
+    DrawFooter();
+
 }
 
 
@@ -322,6 +397,11 @@ void WinMainCRTStartup()
     Win32InitOpenGL(window);
     InitFunctions();
     InitFonts();
+    InitConstants();
+
+    // layout sizes depends on constants, constants depends on fonts, fonts on window initialization
+    OnResize();
+
 
     file = ReadFileIntoDoubledSizedBuffer(PATH);
     textProgram = CreateProgram("..\\shaders\\base.vs", "..\\shaders\\base.fs");

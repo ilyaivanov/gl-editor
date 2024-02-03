@@ -20,6 +20,8 @@ typedef struct FontKerningPair
 
 typedef struct FontData 
 {
+    u8* name;
+    i32 size;
     MyBitmap textures[MAX_CHAR_CODE];
     GLuint cachedTextures[MAX_CHAR_CODE];
 
@@ -34,8 +36,7 @@ typedef struct FontData
     FontKerningPair pairsHash[16 * 1024]; // Segoe UI has around 8k pairs
 } FontData;
 
-FontData uiFont;
-FontData codeFont;
+
 
 
 FontData *currentFont;
@@ -185,16 +186,10 @@ void CreateFontTexturesForOpenGl(FontData *font)
     }
 }
 
-void InitFonts()
+void InitFont(FontData* font)
 {
-    // InitFontSystem(&titleFont, 40, "Segoe UI Bold");
-    // CreateFontTexturesForOpenGl(&titleFont);
-
-    InitFontSystem(&uiFont, 14, "Segoe UI");
-    CreateFontTexturesForOpenGl(&uiFont);
-    
-    InitFontSystem(&codeFont, 14, "Consolas");
-    CreateFontTexturesForOpenGl(&codeFont);
+    InitFontSystem(font, font->size, font->name);
+    CreateFontTexturesForOpenGl(font);
 }
 
 
