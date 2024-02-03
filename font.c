@@ -18,10 +18,15 @@ typedef struct FontKerningPair
     i8 val;
 } FontKerningPair;
 
-typedef struct FontData 
+
+typedef struct FontInfo
 {
     u8* name;
     i32 size;
+} FontInfo;
+
+typedef struct FontData 
+{
     MyBitmap textures[MAX_CHAR_CODE];
     GLuint cachedTextures[MAX_CHAR_CODE];
 
@@ -186,9 +191,9 @@ void CreateFontTexturesForOpenGl(FontData *font)
     }
 }
 
-void InitFont(FontData* font)
+void InitFont(FontInfo* info, FontData *font)
 {
-    InitFontSystem(font, font->size, font->name);
+    InitFontSystem(font, info->size, info->name);
     CreateFontTexturesForOpenGl(font);
 }
 

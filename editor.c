@@ -103,8 +103,6 @@ typedef enum CursorMovement
 } CursorMovement;
 
 
-//PageUp/PageDown
-
 i32 MoveByLines(StringBuffer* buffer, i32 linesCountToMove)
 {
     i32 direction = linesCountToMove < 0 ? -1 : 1;
@@ -195,9 +193,9 @@ void MoveCursor(StringBuffer* buffer, CursorMovement movement, i32 isSelecting)
     else if (movement == Down)
         nextCursor = MoveByLines(buffer, 1);
     else if (movement == PageDown)
-        nextCursor = MoveByLines(buffer, mainLayout.height / codeFont.textMetric.tmHeight);
+        nextCursor = MoveByLines(buffer, mainLayout.height / codeFont->textMetric.tmHeight);
     else if (movement == PageUp)
-        nextCursor = MoveByLines(buffer, -(mainLayout.height / codeFont.textMetric.tmHeight));
+        nextCursor = MoveByLines(buffer, -(mainLayout.height / codeFont->textMetric.tmHeight));
     else if (movement == LineEnd)
         nextCursor = GetNewLineAfter(buffer, cursor.cursorIndex);
     else if (movement == LineStart)

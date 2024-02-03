@@ -1,3 +1,6 @@
+#ifndef OPENGLPROGRAM_C
+#define OPENGLPROGRAM_C
+
 #include "../win32.c"
 #include <gl/gl.h>
 
@@ -110,3 +113,4 @@ GLuint CreateProgram(char *vertexShaderPath, char *fragmentShaderPath)
     return program;
 }
 
+#endif

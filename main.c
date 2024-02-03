@@ -13,8 +13,11 @@
 // interesting to think about how to solve this
 Layout mainLayout = {0};
 
-FontData uiFont   = {.size = 12, .name = "Segoe UI"};
-FontData codeFont = {.size = 14, .name = "Consolas"};
+FontInfo uiFontInfo   = {.size = 12, .name = "Segoe UI"};
+FontData* uiFont;
+
+FontInfo codeFontInfo = {.size = 14, .name = "Consolas"};
+FontData* codeFont;
 
 #include "editor.c"
 
@@ -55,13 +58,16 @@ void InitConstants()
     spaceForLineNumbers = PX(40);
     lineNumberToCode = PX(10);
     footerPadding = PX(5);
-    footerHeight = uiFont.textMetric.tmHeight + footerPadding;
+    footerHeight = uiFont->textMetric.tmHeight + footerPadding;
 }
 
 void InitFonts()
 {
-    InitFont(&uiFont);
-    InitFont(&codeFont);
+    u8* mem = VirtualAllocateMemory(sizeof(FontData) * 2);
+    uiFont   = (FontData*) mem;
+    codeFont = (FontData*) (mem + sizeof(FontData));
+    InitFont(&uiFontInfo, uiFont);
+    InitFont(&codeFontInfo, codeFont);
 }
 
 void OnResize()
@@ -136,7 +142,7 @@ LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
         else if (wParam == 'S' && IsKeyPressed(VK_CONTROL))
             WriteMyFile(PATH, file.content, file.size);
 
-        f32 rowHeight = codeFont.textMetric.tmHeight;
+        f32 rowHeight = codeFont->textMetric.tmHeight;
         f32 cursorPos = cursor.row * rowHeight + padding;
 
         if(cursorPos + mainLayout.offsetY + rowHeight * 5 > mainLayout.height)
@@ -280,7 +286,7 @@ void DrawFooter()
     SetMat4("projection", projection);
     SetV3f("color", uiFadedColor);
 
-    currentFont = &uiFont;
+    currentFont = uiFont;
     u8* label = PATH;
     f32 x = footerPadding;
     f32 y = footer.height / 2 - currentFont->textMetric.tmHeight / 2;
@@ -312,8 +318,47 @@ void DrawFooter()
         glBindTexture(GL_TEXTURE_2D, currentFont->cachedTextures[asterisk]);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, ArrayLength(vertices) / FLOATS_PER_VERTEX);
     }
+}
+
+void DrawModal()
+{
+    UseProgram(primitivesProgram);
+
+    f32 borderSize = PX(10);
+    f32 modalWidth = PX(200);
+    f32 modalHeight = PX(300);
+    f32 modalTopMargin = PX(20);
 
 
+
+    f32 x = mainLayout.width / 2 - modalWidth / 2;
+    SetV3f("color", (V3f){1.0f, 1.0f, 1.0f});
+    SetMat4("view", CreateViewMatrix(
+        x, 
+        mainLayout.y + mainLayout.height - modalTopMargin - modalHeight, 
+        modalWidth, modalHeight));
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, ArrayLength(vertices) / FLOATS_PER_VERTEX);
+
+    SetV3f("color", (V3f){0.1f, 0.1f, 0.1f});
+    f32 modalLeft = x + borderSize;
+    f32 modalBottom = mainLayout.y + mainLayout.height - modalTopMargin - modalHeight + borderSize;
+    SetMat4("view", CreateViewMatrix(
+        modalLeft, modalBottom,
+        modalWidth - borderSize * 2, modalHeight - borderSize * 2));
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, ArrayLength(vertices) / FLOATS_PER_VERTEX);
+
+
+    f32 pointSize = PX(20);
+    f32 runningY = modalBottom + modalHeight - PX(10) - borderSize - pointSize;
+    f32 runningX = modalLeft + PX(10);
+    SetV3f("color", (V3f){0.8f, 0.8f, 0.8f});
+    for (int i = 0; i < 10; i++)
+    {
+        SetMat4("view", CreateViewMatrix(runningX, runningY, pointSize, pointSize));
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, ArrayLength(vertices) / FLOATS_PER_VERTEX);
+
+        runningY -= PX(50);
+    }
 }
 
 void Draw()
@@ -330,7 +375,7 @@ void Draw()
     // in short: rows in math are columns in code
     Mat4 projection = CreateViewMatrix(-1, -1, 2.0f / (f32)clientAreaSize.x, 2.0f / (f32)clientAreaSize.y);
     
-    currentFont = &codeFont;
+    currentFont = codeFont;
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
    
    
@@ -416,7 +461,7 @@ void Draw()
     glDrawArrays(GL_TRIANGLE_STRIP, 0, ArrayLength(vertices) / FLOATS_PER_VERTEX);
 
     DrawFooter();
-
+    DrawModal();
 }
 
 
