@@ -33,6 +33,11 @@ inline void SetV3f(char *name, V3f vec)
     glUniform3f(glGetUniformLocation(currentProgram, name), vec.x, vec.y, vec.z);
 }
 
+inline void SetV4f(char *name, V4f vec)
+{
+    glUniform4f(glGetUniformLocation(currentProgram, name), vec.r, vec.g, vec.b, vec.a);
+}
+
 inline void Set1f(char *name, f32 v)
 {
     glUniform1f(glGetUniformLocation(currentProgram, name), v);

@@ -19,6 +19,7 @@ inline void MoveBytesLeft(char *ptr, int length)
     }
 }
 
+
 inline void MoveBytesRight(char *ptr, int length) 
 {
     for (int i = length - 1; i > 0; i--) {
@@ -62,7 +63,7 @@ void RemoveCharAt(StringBuffer *buffer, i32 at)
 void RemoveBufferSegment(StringBuffer *buffer, i32 from, i32 to)
 {
     char * dest = buffer->content + to;
-    char * source = buffer->content + from + 1;
+    char * source = buffer->content + from;
     for(int i = from; i < buffer->size; i++)
     {
         *dest = *source;
@@ -70,7 +71,7 @@ void RemoveBufferSegment(StringBuffer *buffer, i32 from, i32 to)
         source++;
     }
 
-    i32 bytesRemoved = from - to + 1;
+    i32 bytesRemoved = from - to;
     buffer->size -= bytesRemoved;
 }
 

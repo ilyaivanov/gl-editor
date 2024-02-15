@@ -5,6 +5,7 @@
 #include "opengl/glFunctions.c"
 #include "opengl/openglProgram.c"
 #include "font.c"
+#include "layout.c"
 #include "ui.c"
 #include "string.c"
 
@@ -49,7 +50,6 @@ f32 footerPadding;
 
 
 
-void Draw();
 
 
 void InitConstants()
@@ -84,6 +84,7 @@ void OnResize()
     footer.width = clientAreaSize.x;
 }
 
+void Draw();
 LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 {
     if (message == WM_DESTROY)
@@ -181,6 +182,10 @@ V3f uiFadedColor      = HexColor(0x888888);
 V3f lineNumberColor   = HexColor(0x666666);
 V3f selectedTextColor = HexColor(0xEEEEEE);
 
+
+V3f modalBg           = HexColor(0x111111);
+V3f modalBorder       = HexColor(0x313131);
+
 V3f macroColor        = HexColor(0xC686BD);
 V3f keywordColor      = HexColor(0x5E99D2);
 V3f stringColor       = HexColor(0xCC937B);
@@ -223,6 +228,23 @@ void DrawTextBottomRight(float x, float y, char *text, V3f color)
         glBindTexture(GL_TEXTURE_2D, currentFont->cachedTextures[*text]);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, ArrayLength(vertices) / FLOATS_PER_VERTEX);
 
+        text++;
+    }
+}
+
+void DrawTextLeftCenter(float x, float y, char *text, V3f color)
+{
+    while(*text)
+    {
+        MyBitmap bitmap2 = currentFont->textures[*text];
+
+        SetMat4("view", CreateViewMatrix(x, y, bitmap2.width, bitmap2.height));
+        SetV3f("color", color);
+        glBindTexture(GL_TEXTURE_2D, currentFont->cachedTextures[*text]);
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, ArrayLength(vertices) / FLOATS_PER_VERTEX);
+
+        //TODO: add kerning
+        x += bitmap2.width;
         text++;
     }
 }
@@ -322,40 +344,49 @@ void DrawFooter()
 
 void DrawModal()
 {
+    
     UseProgram(primitivesProgram);
-
-    f32 borderSize = PX(10);
-    f32 modalWidth = PX(200);
-    f32 modalHeight = PX(300);
+    Mat4 projection = CreateViewMatrix(-1, -1, 2.0f / (f32)clientAreaSize.x, 2.0f / (f32)clientAreaSize.y);
+  
+    f32 borderSize     = PX(10);
+    f32 modalWidth     = PX(600);
+    f32 modalHeight    = PX(400);
     f32 modalTopMargin = PX(20);
 
-
-
     f32 x = mainLayout.width / 2 - modalWidth / 2;
-    SetV3f("color", (V3f){1.0f, 1.0f, 1.0f});
+    SetV3f("color", modalBorder);
     SetMat4("view", CreateViewMatrix(
         x, 
         mainLayout.y + mainLayout.height - modalTopMargin - modalHeight, 
         modalWidth, modalHeight));
     glDrawArrays(GL_TRIANGLE_STRIP, 0, ArrayLength(vertices) / FLOATS_PER_VERTEX);
 
-    SetV3f("color", (V3f){0.1f, 0.1f, 0.1f});
+    SetV3f("color", modalBg);
     f32 modalLeft = x + borderSize;
     f32 modalBottom = mainLayout.y + mainLayout.height - modalTopMargin - modalHeight + borderSize;
+
     SetMat4("view", CreateViewMatrix(
         modalLeft, modalBottom,
         modalWidth - borderSize * 2, modalHeight - borderSize * 2));
     glDrawArrays(GL_TRIANGLE_STRIP, 0, ArrayLength(vertices) / FLOATS_PER_VERTEX);
 
 
-    f32 pointSize = PX(20);
-    f32 runningY = modalBottom + modalHeight - PX(10) - borderSize - pointSize;
-    f32 runningX = modalLeft + PX(10);
-    SetV3f("color", (V3f){0.8f, 0.8f, 0.8f});
+    f32 pointSize = PX(5);
+    f32 runningY = modalBottom + modalHeight - borderSize * 2 - pointSize;
+    f32 runningX = modalLeft;
     for (int i = 0; i < 10; i++)
     {
+        UseProgram(primitivesProgram);
+        Mat4 projection = CreateViewMatrix(-1, -1, 2.0f / (f32)clientAreaSize.x, 2.0f / (f32)clientAreaSize.y);
+        SetMat4("projection", projection);    
+        SetV3f("color", (V3f){0.8f, 0.8f, 0.8f});
         SetMat4("view", CreateViewMatrix(runningX, runningY, pointSize, pointSize));
         glDrawArrays(GL_TRIANGLE_STRIP, 0, ArrayLength(vertices) / FLOATS_PER_VERTEX);
+
+
+        UseProgram(textProgram);
+        currentFont = uiFont;
+        DrawTextLeftCenter(runningX + PX(100), runningY, "Foo and Bar", textColor);
 
         runningY -= PX(50);
     }
@@ -478,7 +509,9 @@ void WinMainCRTStartup()
     InitFonts();
     InitConstants();
 
+
     // layout sizes depends on constants, constants depends on fonts, fonts on window initialization
+    // thus I can't rely on WM_SIZE events during window creation, because fonts aren't there yet
     OnResize();
 
 

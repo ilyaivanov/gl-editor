@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Similar Music</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: #121212;
+            color: #eeeeee;
+            font-family: "Segoe UI";
+            font-size: 14px;
+            height: 100vh;
+        }
+
+        ol {
+            margin: 0;
+        }
+
+        .page {
+            height: 100%;
+            display: flex;
+
+        }
+
+        .list,
+        .similar {
+            flex: 1;
+            overflow: auto;
+        }
+
+        .list::-webkit-scrollbar,
+        .similar::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        .list::-webkit-scrollbar-thumb,
+        .similar::-webkit-scrollbar-thumb {
+            background: #555;
+        }
+
+        .list::-webkit-scrollbar-thumb:hover,
+        .similar::-webkit-scrollbar-thumb:hover {
+            background: #888;
+        }
+
+        .similar {
+            border-left: 2px solid grey;
+        }
+
+        .item {
+            padding: 3px 5px;
+        }
+
+        .container {
+            display: flex;
+        }
+
+        .add {
+            visibility: hidden;
+            margin-left: 5px;
+        }
+
+        .item:hover .add {
+            visibility: visible;
+        }
+
+        .score {
+            color: grey;
+            margin-left: auto;
+        }
+
+
+        .group {
+            display: flex;
+            justify-content: center;
+            font-size: 16px;
+            margin-top: 8px;
+        }
+
+        .option {
+            width: 20px;
+            padding: 6px;
+            background-color: rgb(65, 65, 65);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .option:hover {
+            background-color: rgb(89, 26, 82);
+        }
+
+        .option:first-of-type {
+            border-top-left-radius: 10px;
+            ;
+            border-bottom-left-radius: 10px;
+            ;
+        }
+
+        .option:last-of-type {
+            border-top-right-radius: 10px;
+            ;
+            border-bottom-right-radius: 10px;
+            ;
+        }
+
+        .option.selected {
+            background-color: rgb(89, 26, 82);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page">
+        <ol id="list" class="list"></ol>
+        <ol id="similar" class="similar">
+            <div class="group">
+                <div id="option-plus" class="option selected">+</div>
+                <div id="option-minus" class="option">-</div>
+            </div>
+        </ol>
+    </div>
+
+
+    <script>
+        // HTML utils
+        function elem(type, props) {
+            const res = document.createElement(type);
+
+            if (props.innerText)
+                res.innerText = props.innerText;
+
+            if (props.children) {
+                for (const child of props.children)
+                    res.appendChild(child);
+            }
+
+            if (props.className)
+                res.className = props.className;
+
+            if (props.onClick)
+                res.addEventListener("click", props.onClick);
+
+            return res;
+        }
+
+        function span(props) { return elem("span", props); }
+        function div(props) { return elem("div", props); }
+        function ol(props) { return elem("ol", props); }
+        function li(props) { return elem("li", props); }
+        function button(props) { return elem("button", props); }
+
+        let method = "+";
+
+        const list = document.getElementById("list");
+        const similar = document.getElementById("similar");
+
+
+        const cache = JSON.parse(localStorage.getItem("mycache")) || {};
+        const selectedItems = JSON.parse(localStorage.getItem("selectedItems")) || [];
+
+        async function addItem(item) {
+            selectedItems.push(item);
+            localStorage.setItem("selectedItems", JSON.stringify(selectedItems));
+
+            if (cache[item.mbid]) {
+                console.log(`Found ${item.name} in cache`);
+            } else {
+                console.log(`Requesting for ${item.name}`);
+
+                const url = `https://ws.audioscrobbler.com/2.0/?method=artist.getsimilar&mbid=${item.mbid}&api_key=185032d80f1827034396b9acfab5a79f&format=json&limit=300`;
+
+                const res = await fetch(url);
+                const json = await res.json();
+
+                const mapped = [];
+                for (const { mbid, name, match, url } of json.similarartists.artist)
+                    mapped.push({ mbid, name, match, url });
+
+                cache[item.mbid] = mapped;
+                localStorage.setItem("mycache", JSON.stringify(cache));
+            }
+
+            rebuildUI();
+        }
+
+        function rebuildUI() {
+            list.replaceChildren();
+            similar.replaceChildren();
+
+            const map = new Map();
+            const existing = new Set();
+            for (const s of selectedItems) {
+                list.appendChild(li({className: "item", innerText: s.name}));
+
+                existing.add(s.name);
+
+                for (const similarArtist of cache[s.mbid]) {
+                    if(+similarArtist.match < 0.01)
+                        console.log(+similarArtist.match);
+
+                    if (map[similarArtist.name]) {
+                        if (method == "+")
+                            map[similarArtist.name].totalMatch += +similarArtist.match;
+                        else
+                            map[similarArtist.name].totalMatch *= +similarArtist.match;
+                    }
+                    else
+                        map[similarArtist.name] = { artist: similarArtist, totalMatch: +similarArtist.match };
+                }
+            }
+
+            similar.appendChild(
+                div({
+                    className: "group",
+                    children: [
+                        div({
+                            className: `option ${method == "+" ? "selected" : ""}`,
+                            innerText: "+",
+                            onClick: () => { method = "+"; rebuildUI(); },
+                        }),
+                        div({
+                            className: `option ${method == "*" ? "selected" : ""}`,
+                            innerText: "*",
+                            onClick: () => { method = "*"; rebuildUI(); },
+                        }),
+
+                    ]
+                }));
+
+
+            const similars = Object.values(map).toSorted((a, b) => b.totalMatch - a.totalMatch);
+
+            for (const info of similars) {
+                if (existing.has(info.artist.name))
+                    continue;
+
+                    similar.appendChild(li({
+                    className: "item",
+                    children: [div({
+                        className: "container",
+                        children: [
+                            span({ innerText: info.artist.name, className: "text" }),
+                            button({ className: "add", innerText: "+", onClick: () => addItem(info.artist) }),
+                            span({ innerText: (+info.totalMatch).toFixed(method == "+" ? 2 : 4), className: "score" })
+                        ]
+                    })]
+                }));
+            }
+        }
+
+        if (selectedItems.length == 0)
+            addItem({ mbid: "8229a8f1-b315-4fae-af57-b3eb71efdaf4", name: "Carbon Based Lifeforms" });
+        else
+            rebuildUI();
+    </script>
+</body>
+
+</html>

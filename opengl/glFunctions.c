@@ -51,24 +51,24 @@ typedef void GlUniform4iv (GLint location, GLsizei count, const GLint *value);
 typedef void GlUniformMatrix2fv (GLint location, GLsizei count, GLboolean transpose, const GLfloat *value);
 typedef void GlUniformMatrix3fv (GLint location, GLsizei count, GLboolean transpose, const GLfloat *value);
 typedef void GlUniformMatrix4fv (GLint location, GLsizei count, GLboolean transpose, const GLfloat *value);
-
+typedef BOOL WglSwapIntervalEXT(GLint interval);
 typedef void GlUniformMatrix4fv (GLint location, GLsizei count, GLboolean transpose, const GLfloat *value);
 
-GlGenBuffers *glGenBuffers;
-GlBindBuffer *glBindBuffer;
-GlBufferData *glBufferData;
-GlCreateShader *glCreateShader;
-GlCompileShader *glCompileShader;
-GlShaderSource *glShaderSource;
-GlGetShaderiv *glGetShaderiv;
-GlGetShaderInfoLog *glGetShaderInfoLog;
+GlGenBuffers* glGenBuffers;
+GlBindBuffer* glBindBuffer;
+GlBufferData* glBufferData;
+GlCreateShader* glCreateShader;
+GlCompileShader* glCompileShader;
+GlShaderSource* glShaderSource;
+GlGetShaderiv* glGetShaderiv;
+GlGetShaderInfoLog* glGetShaderInfoLog;
 
-GlCreateProgram *glCreateProgram;
-GlAttachShader *glAttachShader;
-GlLinkProgram *glLinkProgram;
-GlGetProgramiv * glGetProgramiv;
+GlCreateProgram* glCreateProgram;
+GlAttachShader* glAttachShader;
+GlLinkProgram* glLinkProgram;
+GlGetProgramiv* glGetProgramiv;
 
-GlGetProgramInfoLog * glGetProgramInfoLog;
+GlGetProgramInfoLog* glGetProgramInfoLog;
 
 GlUseProgram* glUseProgram;
 GlDeleteShader* glDeleteShader;
@@ -77,52 +77,53 @@ GlVertexAttribPointer* glVertexAttribPointer;
 GlGenVertexArrays* glGenVertexArrays;
 GlEnableVertexAttribArray* glEnableVertexAttribArray;
 
-GlGetUniformLocation *glGetUniformLocation;
-GlUniform4f *glUniform4f;
-GlGenerateMipmap *glGenerateMipmap;
-GlActiveTexture *glActiveTexture;
+GlGetUniformLocation* glGetUniformLocation;
+GlGenerateMipmap* glGenerateMipmap;
+GlActiveTexture* glActiveTexture;
+
+WglSwapIntervalEXT* wglSwapIntervalEXT;
 
 
-GlUniform1f *glUniform1f;
-GlUniform2f *glUniform2f;
-GlUniform3f *glUniform3f;
-GlUniform4f *glUniform4f;
-GlUniform1i *glUniform1i;
-GlUniform2i *glUniform2i;
-GlUniform3i *glUniform3i;
-GlUniform4i *glUniform4i;
-GlUniform1fv *glUniform1fv;
-GlUniform2fv *glUniform2fv;
-GlUniform3fv *glUniform3fv;
-GlUniform4fv *glUniform4fv;
-GlUniform1iv *glUniform1iv;
-GlUniform2iv *glUniform2iv;
-GlUniform3iv *glUniform3iv;
-GlUniform4iv *glUniform4iv;
-GlUniformMatrix2fv *glUniformMatrix2fv;
-GlUniformMatrix3fv *glUniformMatrix3fv;
-GlUniformMatrix4fv *glUniformMatrix4fv;
+GlUniform1f* glUniform1f;
+GlUniform2f* glUniform2f;
+GlUniform3f* glUniform3f;
+GlUniform4f* glUniform4f;
+GlUniform1i* glUniform1i;
+GlUniform2i* glUniform2i;
+GlUniform3i* glUniform3i;
+GlUniform4i* glUniform4i;
+GlUniform1fv* glUniform1fv;
+GlUniform2fv* glUniform2fv;
+GlUniform3fv* glUniform3fv;
+GlUniform4fv* glUniform4fv;
+GlUniform1iv* glUniform1iv;
+GlUniform2iv* glUniform2iv;
+GlUniform3iv* glUniform3iv;
+GlUniform4iv* glUniform4iv;
+GlUniformMatrix2fv* glUniformMatrix2fv;
+GlUniformMatrix3fv* glUniformMatrix3fv;
+GlUniformMatrix4fv* glUniformMatrix4fv;
 
 // GlPolygonMode* glPolygonMode;
 
 void InitFunctions()
 {
-    glGenBuffers = (GlGenBuffers *)wglGetProcAddress("glGenBuffers");
-    glBindBuffer = (GlBindBuffer *)wglGetProcAddress("glBindBuffer");
-    glBufferData = (GlBufferData *)wglGetProcAddress("glBufferData");
-    glCreateShader = (GlCreateShader *)wglGetProcAddress("glCreateShader");
-    glCompileShader = (GlCompileShader *)wglGetProcAddress("glCompileShader");
-    glShaderSource = (GlShaderSource *)wglGetProcAddress("glShaderSource");
-    glGetShaderiv = (GlGetShaderiv *)wglGetProcAddress("glGetShaderiv");
-    glGetShaderInfoLog = (GlGetShaderInfoLog *)wglGetProcAddress("glGetShaderInfoLog");
-    glCreateProgram = (GlCreateProgram *)wglGetProcAddress("glCreateProgram");
-    glAttachShader = (GlAttachShader *)wglGetProcAddress("glAttachShader");
-    glLinkProgram = (GlLinkProgram *)wglGetProcAddress("glLinkProgram");
-    glGetProgramiv = (GlGetProgramiv *)wglGetProcAddress("glGetProgramiv");
-    glGetProgramInfoLog = (GlGetProgramInfoLog *)wglGetProcAddress("glGetProgramInfoLog");
+    glGenBuffers = (GlGenBuffers* )wglGetProcAddress("glGenBuffers");
+    glBindBuffer = (GlBindBuffer* )wglGetProcAddress("glBindBuffer");
+    glBufferData = (GlBufferData* )wglGetProcAddress("glBufferData");
+    glCreateShader = (GlCreateShader* )wglGetProcAddress("glCreateShader");
+    glCompileShader = (GlCompileShader* )wglGetProcAddress("glCompileShader");
+    glShaderSource = (GlShaderSource* )wglGetProcAddress("glShaderSource");
+    glGetShaderiv = (GlGetShaderiv* )wglGetProcAddress("glGetShaderiv");
+    glGetShaderInfoLog = (GlGetShaderInfoLog* )wglGetProcAddress("glGetShaderInfoLog");
+    glCreateProgram = (GlCreateProgram* )wglGetProcAddress("glCreateProgram");
+    glAttachShader = (GlAttachShader* )wglGetProcAddress("glAttachShader");
+    glLinkProgram = (GlLinkProgram* )wglGetProcAddress("glLinkProgram");
+    glGetProgramiv = (GlGetProgramiv* )wglGetProcAddress("glGetProgramiv");
+    glGetProgramInfoLog = (GlGetProgramInfoLog* )wglGetProcAddress("glGetProgramInfoLog");
 
-    glUseProgram = (GlUseProgram *)wglGetProcAddress("glUseProgram");
-    glDeleteShader = (GlDeleteShader *)wglGetProcAddress("glDeleteShader");
+    glUseProgram = (GlUseProgram* )wglGetProcAddress("glUseProgram");
+    glDeleteShader = (GlDeleteShader* )wglGetProcAddress("glDeleteShader");
 
     glBindVertexArray = (GlBindVertexArray*)wglGetProcAddress("glBindVertexArray");
     glVertexAttribPointer = (GlVertexAttribPointer*)wglGetProcAddress("glVertexAttribPointer");
@@ -153,6 +154,10 @@ void InitFunctions()
     glUniformMatrix2fv = (GlUniformMatrix2fv*)wglGetProcAddress("glUniformMatrix2fv");
     glUniformMatrix3fv = (GlUniformMatrix3fv*)wglGetProcAddress("glUniformMatrix3fv");
     glUniformMatrix4fv = (GlUniformMatrix4fv*)wglGetProcAddress("glUniformMatrix4fv");
+    
+    wglSwapIntervalEXT = (WglSwapIntervalEXT*)wglGetProcAddress("wglSwapIntervalEXT");
+
+
 }
 
 #endif

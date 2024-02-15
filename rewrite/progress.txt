@@ -1,0 +1,13 @@
+Backlog
+[ ] Navigation in files
+[ ] Modes
+[ ] Search
+[ ] Multiple cursors
+
+
+Running Tasks
+[x] Try again to show a window without title bar (postponed)
+    [x] I can use WS_POPUP with squared corners, but with custom NC_HITTEST
+        I can't - using WS_POPUP doesn't pin window to screen corners
+[y] Integrate editor 
+[ ] Change history

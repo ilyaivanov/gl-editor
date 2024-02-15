@@ -4,9 +4,11 @@
 #include <windows.h>
 #include <dwmapi.h>
 #include "core.c"
-#include "memory.c"
 
+//https://learn.microsoft.com/en-us/windows/win32/winmsg/window-styles
 #define EDITOR_DEFAULT_WINDOW_STYLE (WS_OVERLAPPEDWINDOW)
+// #define EDITOR_DEFAULT_WINDOW_STYLE ( WS_THICKFRAME)
+// #define EDITOR_DEFAULT_WINDOW_STYLE WS_POPUP
 
 HWND OpenWindow(HINSTANCE instance, WNDPROC OnEvent)
 {
@@ -29,7 +31,20 @@ HWND OpenWindow(HINSTANCE instance, WNDPROC OnEvent)
     int windowWidth = 1000;
     int windowHeight = 1200;
     int padding = 20;
-    HWND window = CreateWindowW(windowClass.lpszClassName, (wchar_t *)"Editor", EDITOR_DEFAULT_WINDOW_STYLE | WS_VISIBLE,
+
+    // HWND window  = CreateWindowExW(
+    //     WS_EX_CLIENTEDGE,
+    //     windowClass.lpszClassName,
+    //     L"Resizable Window without Title Bar",
+    //     WS_POPUP | WS_THICKFRAME | WS_VISIBLE,
+    //     CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
+    //     NULL, NULL, instance, NULL
+    // );
+
+
+
+    HWND window = CreateWindowW(windowClass.lpszClassName, (wchar_t *)"Editor", 
+                                WS_OVERLAPPEDWINDOW | WS_VISIBLE,
                                 screenWidth - windowWidth - padding, padding, windowWidth, windowHeight,
                                 0, 0, instance, 0);
 
@@ -37,7 +52,8 @@ HWND OpenWindow(HINSTANCE instance, WNDPROC OnEvent)
     BOOL SET_IMMERSIVE_DARK_MODE_SUCCESS = SUCCEEDED(DwmSetWindowAttribute(
         window, DWMWA_USE_IMMERSIVE_DARK_MODE, &USE_DARK_MODE, sizeof(USE_DARK_MODE)));
 
-    DeleteObject(windowClass.hbrBackground);
+    // TODO: maybe this is because window is flickering during runtime
+    // DeleteObject(windowClass.hbrBackground);
     return window;
 }
 
@@ -104,6 +120,35 @@ static void PreventWindowsDPIScaling()
     }
 }
 
+
+// https://devblogs.microsoft.com/oldnewthing/20100412-00/?p=14353
+WINDOWPLACEMENT prevWindowDimensions = {sizeof(prevWindowDimensions)};
+void SetFullscreen(HWND window, i32 isFullscreen)
+{
+    DWORD style = GetWindowLong(window, GWL_STYLE);
+    if (isFullscreen)
+    {
+        MONITORINFO monitorInfo = {sizeof(monitorInfo)};
+        if (GetWindowPlacement(window, &prevWindowDimensions) &&
+            GetMonitorInfo(MonitorFromWindow(window, MONITOR_DEFAULTTOPRIMARY), &monitorInfo))
+        {
+            SetWindowLong(window, GWL_STYLE, style & ~WS_OVERLAPPEDWINDOW);
+
+            SetWindowPos(window, HWND_TOP,
+                         monitorInfo.rcMonitor.left - 10, monitorInfo.rcMonitor.top,
+                         monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left + 10,
+                         monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top + 10,
+                         SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+        }
+    }
+    else
+    {
+        SetWindowLong(window, GWL_STYLE, style | WS_OVERLAPPEDWINDOW);
+        SetWindowPlacement(window, &prevWindowDimensions);
+        SetWindowPos(window, NULL, 0, 0, 0, 0,
+                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+    }
+}
 
 
 //

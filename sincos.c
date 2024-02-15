@@ -1,3 +1,5 @@
+#ifndef SINCOS_C
+#define SINCOS_C
 #include <xmmintrin.h>
 
 int _fltused = 0x9875;
@@ -93,3 +95,4 @@ inline float mysqrtf(float x) {
 
     return result;
 }
+#endif

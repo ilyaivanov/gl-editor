@@ -33,6 +33,13 @@ typedef struct V3f {
     };
 }  V3f;
 
+typedef struct V4f { 
+    union { 
+        struct { f32 x, y, z, t; };
+        struct { f32 r, g, b, a; };
+    };
+}  V4f;
+
 typedef struct Mat4 {
     float values[16];
 } Mat4;
@@ -44,14 +51,6 @@ typedef struct MyBitmap
     i32 bytesPerPixel;
     u32 *pixels;
 } MyBitmap;
-
-typedef struct Layout
-{
-    float x, y, width, height;
-    float runningY;
-    float offsetY, pageHeight;
-} Layout;
-
 
 
 
@@ -102,6 +101,16 @@ inline f32 ClampI32(i32 val, i32 min, i32 max)
         return max;
     return val;
 }
+
+inline void* VirtualAllocateMemory(size_t size)
+{
+     return VirtualAlloc(0, size, MEM_COMMIT, PAGE_READWRITE);
+};
+
+inline void VirtualFreeMemory(void * ptr)
+{
+    VirtualFree(ptr, 0, MEM_RELEASE);
+};
 
 
 #endif

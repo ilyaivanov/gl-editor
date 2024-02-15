@@ -4,7 +4,6 @@
 #include <windows.h>
 #include <gl/gl.h>
 #include "core.c"
-#include "memory.c"
 
 // this dependency is questionable
 // #include "layout.c"
@@ -30,41 +29,35 @@ typedef struct FontData
     MyBitmap textures[MAX_CHAR_CODE];
     GLuint cachedTextures[MAX_CHAR_CODE];
 
-    // stupid fucking design, but I need to create sparse system for 200k unicode chars
-    MyBitmap checkmark;
-
     // Need to use ABC structure for this 
     // https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-getcharabcwidthsa
 
     TEXTMETRIC textMetric;
-
-    FontKerningPair pairsHash[16 * 1024]; // Segoe UI has around 8k pairs
+    
+    FontKerningPair* pairsHash;
 } FontData;
-
-
 
 
 FontData *currentFont;
 
+// Segoe UI has around 8k pairs, monospace has none pairs
+#define PAIRS_HASH_LENGTH 16 * 1024
 inline int HashAndProbeIndex(FontData *font, u16 left, u16 right)
 {
-    i32 keysMask = ArrayLength(font->pairsHash) - 1;
+    i32 keysMask = PAIRS_HASH_LENGTH - 1;
     i32 index = (left * 19 + right * 7) & keysMask;
     int i = 1;
     while(font->pairsHash[index].left != 0 && font->pairsHash[index].left != left && font->pairsHash[index].right != right)
     {
         index += (i*i);
         i++;
-        if(index >= ArrayLength(font->pairsHash))
+        if(index >= PAIRS_HASH_LENGTH)
             index = index & keysMask;
         
     }
     return index;
 }
-// 0xA011A0
-#define TRANSPARENT_R 0x0
-#define TRANSPARENT_G 0x0
-#define TRANSPARENT_B 0x0
+
 
 // takes dimensions of destinations, reads rect from source at (0,0)
 inline void CopyRectTo(MyBitmap *sourceT, MyBitmap *destination)
@@ -77,10 +70,11 @@ inline void CopyRectTo(MyBitmap *sourceT, MyBitmap *destination)
         u32 *sourcePixel = source;
         for (u32 x = 0; x < destination->width; x += 1)
         {
-            u8 r = (*sourcePixel & 0xff0000) >> 16;
-            u8 g = (*sourcePixel & 0x00ff00) >> 8;
-            u8 b = (*sourcePixel & 0x0000ff) >> 0;
-            u32 alpha = (r == TRANSPARENT_R && g == TRANSPARENT_G && b == TRANSPARENT_B) ? 0x00000000 : 0xff000000;
+            // u8 r = (*sourcePixel & 0xff0000) >> 16;
+            // u8 g = (*sourcePixel & 0x00ff00) >> 8;
+            // u8 b = (*sourcePixel & 0x0000ff) >> 0;
+            // u32 alpha = (r == TRANSPARENT_R && g == TRANSPARENT_G && b == TRANSPARENT_B) ? 0x00000000 : 0xff000000;
+            u32 alpha = 0xff000000;
             *pixel = *sourcePixel | alpha;
             sourcePixel += 1;
             pixel += 1;
@@ -90,7 +84,7 @@ inline void CopyRectTo(MyBitmap *sourceT, MyBitmap *destination)
     }
 }
 
-void InitFontSystem(FontData *fontData, int fontSize, char* fontName)
+void InitFontSystem(FontData *fontData, int fontSize, char* fontName, u32 foreground, u32 background)
 {
 
     HDC deviceContext = CreateCompatibleDC(0);
@@ -124,28 +118,34 @@ void InitFontSystem(FontData *fontData, int fontSize, char* fontName)
     SelectObject(deviceContext, bitmap);
     SelectObject(deviceContext, font);
 
-    i32 kerningPairCount = GetKerningPairsW(deviceContext, 0, 0);
-    i32 pairsSizeAllocated = sizeof(KERNINGPAIR) * kerningPairCount;
-    KERNINGPAIR *pairs = VirtualAllocateMemory(pairsSizeAllocated);
-    GetKerningPairsW(deviceContext, kerningPairCount, pairs);
+     i32 kerningPairCount = GetKerningPairsW(deviceContext, 0, 0);
 
-    i32 hashSize = ArrayLength(fontData->pairsHash);
-    i32 keysMask = hashSize - 1;
-    for(int i = 0; i < kerningPairCount; i++)
-    {
-        KERNINGPAIR *pair = pairs + i;
-        i32 index = HashAndProbeIndex(fontData, pair->wFirst, pair->wSecond);
+     
+     if (kerningPairCount > 1)
+     {
+         
+         fontData->pairsHash = VirtualAllocateMemory(PAIRS_HASH_LENGTH * sizeof(FontKerningPair));
+         
+         i32 pairsSizeAllocated = sizeof(KERNINGPAIR) * kerningPairCount;
+         KERNINGPAIR *pairs = VirtualAllocateMemory(pairsSizeAllocated);
+         GetKerningPairsW(deviceContext, kerningPairCount, pairs);
 
-        fontData->pairsHash[index].left = pair->wFirst;
-        fontData->pairsHash[index].right = pair->wSecond;
-        fontData->pairsHash[index].val = pair->iKernAmount;
-    }
-    VirtualFreeMemory(pairs);
+         for (int i = 0; i < kerningPairCount; i++)
+         {
+             KERNINGPAIR *pair = pairs + i;
+             i32 index = HashAndProbeIndex(fontData, pair->wFirst, pair->wSecond);
+
+             fontData->pairsHash[index].left = pair->wFirst;
+             fontData->pairsHash[index].right = pair->wSecond;
+             fontData->pairsHash[index].val = pair->iKernAmount;
+         }
+         VirtualFreeMemory(pairs);
+     }
 
     // TRANSPARENT still leaves 00 as alpha value for non-trasparent pixels. I love GDI
     // SetBkColor(deviceContext, TRANSPARENT);
-    SetBkColor(deviceContext, RGB(TRANSPARENT_R, TRANSPARENT_G, TRANSPARENT_B));
-    SetTextColor(deviceContext, RGB(255, 255, 255));
+    SetBkColor(deviceContext, background);
+    SetTextColor(deviceContext, foreground);
 
 
     SIZE size;
@@ -191,15 +191,22 @@ void CreateFontTexturesForOpenGl(FontData *font)
     }
 }
 
-void InitFont(FontInfo* info, FontData *font)
+void InitFont(FontInfo* info, FontData *font, u32 foreground, u32 backgorund)
 {
-    InitFontSystem(font, info->size, info->name);
+    InitFontSystem(font, info->size, info->name, foreground, backgorund);
     CreateFontTexturesForOpenGl(font);
 }
 
+i32 IsMonospaced(FontData* font)
+{
+    return font->pairsHash == NULL;
+}
 
 inline int GetKerningValue(u16 left, u16 right)
 {
+    if(IsMonospaced(currentFont))
+        return 0;
+
     i32 index = HashAndProbeIndex(currentFont, left, right);
 
     if(currentFont->pairsHash[index].left != left && currentFont->pairsHash[index].right != right)
@@ -209,5 +216,21 @@ inline int GetKerningValue(u16 left, u16 right)
 
     return currentFont->pairsHash[index].val;
 }
+
+
+i32 GetTextWidth(u8 *text){
+    i32 res = 0;
+    while(*text)
+    {
+        u8 ch = *text;
+        // skips new lines and other control symbols
+        if(ch >= ' ')
+            res += currentFont->textures[ch].width + (GetKerningValue(ch, *(text + 1)));
+
+        text++;
+    }
+    return res;
+}
+
 
 #endif

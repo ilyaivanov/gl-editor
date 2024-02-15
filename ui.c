@@ -2,15 +2,16 @@
 #define UI_C
 
 #include "core.c"
+#include "layout.c"
 
 inline Mat4 DrawScrollbar(Layout *layout, float scrollWidth)
 {
-    if(layout->pageHeight > layout->height)
+    if(layout->runningY > layout->height)
     {
-        i32 scrollY = layout->offsetY * (layout->height / layout->pageHeight);
-        i32 scrollHeight = layout->height * (layout->height / layout->pageHeight);
+        i32 scrollY = layout->offsetY * (layout->height / layout->runningY);
+        i32 scrollHeight = layout->height * (layout->height / layout->runningY);
         
-        glColor3f(0.3f, 0.3f, 0.3f);
+        // glColor3f(0.3f, 0.3f, 0.3f);
 
         f32 x = layout->x + layout->width - scrollWidth;
         f32 y = layout->y + layout->height - scrollHeight + scrollY;
