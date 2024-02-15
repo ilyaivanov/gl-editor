@@ -89,7 +89,10 @@ inline i32 GetNewLineBefore(StringBuffer* buffer, i32 pos)
 
 i32 GetNewLineAfter(StringBuffer* buffer, i32 pos)
 {
-    return GetSymbolIndexAfterInclusive(buffer, pos, '\n');
+    i32 res = GetSymbolIndexAfterInclusive(buffer, pos, '\n');
+    if(res == -1)
+        return buffer->size;
+    return res;
 }
 
 typedef enum CursorMovement
