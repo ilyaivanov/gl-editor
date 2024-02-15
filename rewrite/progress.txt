@@ -1,8 +1,15 @@
+Overall Goal
+[ ] Replace VS code as soon as possible, then add VIM commands
+
 Backlog
 [ ] Navigation in files
-[ ] Modes
 [ ] Search
 [ ] Multiple cursors
+[ ] Undo/redo
+[ ] Colors?
+
+Vim
+[ ] Modes
 
 
 Running Tasks

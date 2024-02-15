@@ -9,7 +9,7 @@
 #include "../editor.c"
 #include "ui.c"
 
-#define FILE_PATH "..\\string.c"
+#define FILE_PATH "..\\rewrite\\progress.txt"
 
 // I'm not happy with the UI results I have. Main issues 
 // - I need to partially store state outside of the IM mode layout
@@ -41,7 +41,10 @@ AppState* state;
 void SetOffset(f32 offset)
 {
     Layout* layout = &state->uiState.codeLayout;
-    layout->offsetY = Clampf32(offset, 0, layout->pageHeight - layout->height);
+    if(layout->pageHeight <= layout->height)
+        layout->offsetY = 0;
+    else 
+        layout->offsetY = Clampf32(offset, 0, layout->pageHeight - layout->height);
 }
 
 void InitAppMemory()
