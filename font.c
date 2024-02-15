@@ -38,11 +38,11 @@ typedef struct FontData
 } FontData;
 
 
-FontData *currentFont;
+const FontData *currentFont;
 
 // Segoe UI has around 8k pairs, monospace has none pairs
 #define PAIRS_HASH_LENGTH 16 * 1024
-inline int HashAndProbeIndex(FontData *font, u16 left, u16 right)
+inline int HashAndProbeIndex(const FontData *font, u16 left, u16 right)
 {
     i32 keysMask = PAIRS_HASH_LENGTH - 1;
     i32 index = (left * 19 + right * 7) & keysMask;
@@ -197,7 +197,7 @@ void InitFont(FontInfo* info, FontData *font, u32 foreground, u32 backgorund)
     CreateFontTexturesForOpenGl(font);
 }
 
-i32 IsMonospaced(FontData* font)
+i32 IsMonospaced(const FontData* font)
 {
     return font->pairsHash == NULL;
 }

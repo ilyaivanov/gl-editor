@@ -181,7 +181,6 @@ i32 JumpWordLeft(StringBuffer* buffer)
 void MoveCursor(StringBuffer* buffer, CursorMovement movement, i32 isSelecting)
 {
     TrackSelection(isSelecting);
-
     i32 nextCursor = 0;
 
     if(movement == Left)

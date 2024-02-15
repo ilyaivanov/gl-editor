@@ -14,7 +14,7 @@ inline Mat4 DrawScrollbar(Layout *layout, float scrollWidth)
         // glColor3f(0.3f, 0.3f, 0.3f);
 
         f32 x = layout->x + layout->width - scrollWidth;
-        f32 y = layout->y + layout->height - scrollHeight + scrollY;
+        f32 y = layout->y + layout->height - scrollHeight - scrollY;
         return (Mat4) {
             scrollWidth, 0, 0, x,
             0, scrollHeight, 0, y,
