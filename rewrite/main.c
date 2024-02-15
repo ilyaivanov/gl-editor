@@ -132,8 +132,10 @@ LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
         
         if(cursorPos - offsetY + lookAhead > layoutHeight)
             SetOffset(cursorPos - layoutHeight + lookAhead); 
-        if(cursorPos - lookAhead < offsetY)
+        else if(cursorPos - lookAhead < offsetY)
             SetOffset(cursorPos - lookAhead); 
+        else //clamp existing offset because it might change dues to pageHeight change in UpdateUi 
+            SetOffset(offsetY); 
         break;
 
     case WM_KEYUP: 
