@@ -5,6 +5,7 @@
                        (float)((hex >>  0) & 0xff) / 255.0f}
 
 #define Grey(val) ((V3f){val, val, val})
+#define Grey4(val) ((V4f){val, val, val, val})
 
 
 

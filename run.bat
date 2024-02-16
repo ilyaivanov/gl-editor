@@ -12,7 +12,7 @@ mkdir build
 pushd build
 
 
-cl %CompilerOptions% ..\rewrite\main.c /link %LinkerOptions% %Libs%
+cl %CompilerOptions% ..\main.c /link %LinkerOptions% %Libs%
 
 echo Compiled
 

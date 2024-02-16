@@ -3,14 +3,16 @@ Overall Goal
 
 Backlog
 [ ] Navigation in files
+[ ] Undo/redo
 [ ] Search
 [ ] Multiple cursors
-[ ] Undo/redo
 [ ] Colors?
 
 Vim
 [ ] Modes
 
+Extra
+[ ] Automated Tests?
 
 Running Tasks
 [x] Try again to show a window without title bar (postponed)

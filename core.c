@@ -52,17 +52,6 @@ typedef struct MyBitmap
     u32 *pixels;
 } MyBitmap;
 
-
-
-inline i32 Clampi32(i32 val, i32 min, i32 max)
-{
-    if (val < min)
-        return min;
-    if (val > max)
-        return max;
-    return val;
-}
-
 inline i32 MaxI32(i32 v1, i32 v2)
 {
     if(v1 > v2)
@@ -104,11 +93,13 @@ inline f32 ClampI32(i32 val, i32 min, i32 max)
 
 inline void* VirtualAllocateMemory(size_t size)
 {
-     return VirtualAlloc(0, size, MEM_COMMIT, PAGE_READWRITE);
+    OutputDebugStringA("Allocating\n");
+    return VirtualAlloc(0, size, MEM_COMMIT, PAGE_READWRITE);
 };
 
 inline void VirtualFreeMemory(void * ptr)
 {
+    OutputDebugStringA("Deallocating\n");
     VirtualFree(ptr, 0, MEM_RELEASE);
 };
 

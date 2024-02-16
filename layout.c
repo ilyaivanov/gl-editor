@@ -18,7 +18,7 @@ i32 currentLayoutIndex = -1;
 
 void PushLayout(f32 x, f32 y, f32 width, f32 height)
 {
-    layoutStack[++currentLayoutIndex] = (Layout){.x = x, .y = y, .runningX = x, .runningY = y, .width = width, .height = height};
+    layoutStack[++currentLayoutIndex] = (Layout){.x = x, .y = y, .width = width, .height = height};
 }
 
 void PushPersistedLayout(Layout layout)
@@ -69,6 +69,12 @@ void ShrinkHorizontal(f32 val)
     currentLayout.x += val;
 
     currentLayout.width -= val*2;
+}
+void ShrinkVertical(f32 val)
+{
+    currentLayout.y += val;
+
+    currentLayout.height -= val*2;
 }
 
 void LayoutMoveRight(f32 val)

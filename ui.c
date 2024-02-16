@@ -1,33 +1,16 @@
 #include <windows.h>
 #include <gl/gl.h>
-#include "../opengl/glFunctions.c"
-#include "../opengl/openglProgram.c"
+#include "opengl/glFunctions.c"
+#include "opengl/openglProgram.c"
 
-#include "../core.c"
-#include "../layout.c"
-#include "../string.c"
-#include "../font.c"
-#include "../colors.c"
-#include "../scrollbar.c"
+#include "core.c"
+#include "layout.c"
+#include "string.c"
+#include "font.c"
+#include "colors.c"
+#include "scrollbar.c"
+#include "app.c"
 
-
-
-typedef struct UiState
-{
-    V2i screen;
-    Layout codeLayout;
-
-    
-    FontData codeFont;
-    FontData lineNumbers;
-    FontData selectedLineNumbers;
-
-
-    GLuint vertexBuffer;
-    GLuint vertexArray;
-
-    f32 scale;
-} UiState;
 
 // Global state
 GLuint primitivesProgram;
@@ -142,25 +125,36 @@ void DrawNumberRightTop(f32 x, f32 y, u32 val)
 
 void DrawCursor(f32 x, f32 y)
 {
-    DrawingShapes();
-
     SetV4f("color", (V4f){1,1,1,1});
     f32 width = PX(2);
     SetMat4("view", CreateViewMatrix(x - width / 2, y, width, currentFont->textMetric.tmHeight));
     glDrawArrays(GL_TRIANGLE_STRIP, 0, ArrayLength(vertices) / FLOATS_PER_VERTEX);
-
-    DrawingText();
 }
 
 void DrawSelectionBackground(f32 x, f32 y, f32 width)
 {
-    DrawingShapes();
-
     SetV4f("color", (V4f){65.0f / 255.0f, 155.0f / 255.0f, 255.0f / 255.0f, 0.30f});
     SetMat4("view", CreateViewMatrix(x, y, width, currentFont->textMetric.tmHeight));
     glDrawArrays(GL_TRIANGLE_STRIP, 0, ArrayLength(vertices) / FLOATS_PER_VERTEX);
+}
 
+f32 DrawTextLeftCenter(const StringBuffer *text)
+{
     DrawingText();
+
+    f32 startX = currentLayout.x + currentLayout.runningX;
+    f32 x = startX;
+    f32 y = currentLayout.y + currentLayout.height / 2 - (f32)currentFont->textMetric.tmHeight / 2;
+
+    for(int i = 0; i < text->size; i++)
+    {
+        i32 kern = (i == (text->size - 1)) ? 0 : GetKerningValue(i, i + 1);
+        x += DrawChar(x, y, *(text->content + i)) + kern;
+    }
+
+    DrawingShapes();
+
+    return x - startX;
 }
 
 void PrintParagraphLeftTopMonospaced(const StringBuffer* buffer)
@@ -182,6 +176,8 @@ void PrintParagraphLeftTopMonospaced(const StringBuffer* buffer)
     i32 selectionFrom = MinI32(cursor.selectionStart, cursor.cursorIndex);
     i32 selectionTo   = MaxI32(cursor.selectionStart, cursor.cursorIndex);
 
+    
+
     for (i32 i = 0; i < buffer->size; i++)
     {
         u8 ch = *(buffer->content + i);
@@ -189,10 +185,18 @@ void PrintParagraphLeftTopMonospaced(const StringBuffer* buffer)
         if(ch == '\n')
         {
             if (i == cursor.cursorIndex)
+            {
+                DrawingShapes();
                 DrawCursor(x, y);
+                DrawingText();
+            }
 
             if(cursor.selectionStart != SELECTION_NONE && i >= selectionFrom && i < selectionTo)
+            {
+                DrawingShapes();
                 DrawSelectionBackground(x, y, currentFont->textures[' '].width);
+                DrawingText();
+            }
 
             y -= currentFont->textMetric.tmHeight;
     
@@ -221,10 +225,18 @@ void PrintParagraphLeftTopMonospaced(const StringBuffer* buffer)
             f32 charWidth = DrawChar(x, y, ch);
 
             if (cursor.selectionStart != SELECTION_NONE && i >= selectionFrom && i < selectionTo)
+            {
+                DrawingShapes();
                 DrawSelectionBackground(x, y, charWidth);
+                DrawingText();
+            }
 
             if (i == cursor.cursorIndex)
+            {
+                DrawingShapes();
                 DrawCursor(x, y);
+                DrawingText();
+            }
             x += charWidth;
         }
     }
@@ -232,40 +244,96 @@ void PrintParagraphLeftTopMonospaced(const StringBuffer* buffer)
 
     // special case for an empty cursor at the end of the file
     if (cursor.cursorIndex == buffer->size)
+    {
+        DrawingShapes();
         DrawCursor(x, y);
+        DrawingText();
+    }
     DrawingShapes();
 }
 
 
 
 
-void Draw(const UiState* state, const StringBuffer* buffer)
+void Draw(const AppState* state)
 {
-    ui = state;
+    ui = &state->uiState;
+    const StringBuffer* buffer = &state->file;
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     DrawingShapes();
-    ResetLayout(state->screen);
+    ResetLayout(ui->screen);
 
-    PushPersistedLayout(state->codeLayout);
+    PushPersistedLayout(ui->codeLayout);
+
+        PrintParagraphLeftTopMonospaced(buffer);
+        
+        
+        SetV4f("color", (V4f){1, 1, 1, 1});
+        SetMat4("view", DrawScrollbar(&currentLayout, PX(10)));
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, ArrayLength(vertices) / FLOATS_PER_VERTEX);
+
+    PopLayout();
 
 
-    PrintParagraphLeftTopMonospaced(buffer);
-    
-    
-    SetV4f("color", (V4f){1, 1, 1, 1});
-    SetMat4("view", DrawScrollbar(&currentLayout, PX(10)));
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, ArrayLength(vertices) / FLOATS_PER_VERTEX);
+    if(state->modal.isShown)
+    {
+        PaintLayout((V4f){0, 0, 0, 0.5f});
+        f32 border = PX(2);
+        f32 width = PX(400);
+        f32 height = PX(500);
+        PushLayout(
+            currentLayout.x + currentLayout.width / 2 - width / 2 - border,
+            currentLayout.y + currentLayout.height / 2 - height / 2 - border,
+            width + border * 2, height + border * 2);
+
+        PaintLayout((V4f){1, 1, 1, 1});
+        ShrinkLayout(border);
+        V3f bg = bgColor;
+        PaintLayout((V4f){bg.r, bg.g, bg.b, 1});
+
+        const ModalState *modal = &state->modal;
+
+        PushRow(currentFont->textMetric.tmHeight + PX(5));
+        PaintLayout((V4f){1, 1, 1, 1});
+        ShrinkVertical(PX(1));
+        PaintLayout((V4f){bg.r, bg.g, bg.b, 1});
+
+        LayoutMoveRight(PX(5));
+        f32 textWidth = DrawTextLeftCenter(&modal->searchTerm);
+        DrawCursor(currentLayout.x + currentLayout.runningX + textWidth, currentLayout.y);
+        PopLayout();
+
+        for (int i = 0; i < modal->filesCount; i++)
+        {
+            f32 padding = PX(4);
+            PushRow(currentFont->textMetric.tmHeight + padding);
+            if (modal->selectedFileIndex == i)
+            {
+                PaintLayout((V4f){0.5f, 0.1f, 0.3f, 1});
+            }
+            LayoutMoveRight(PX(6));
+            DrawTextLeftCenter(&modal->files[i]);
+            PopLayout();
+
+            PushRow(PX(1.5f));
+            PaintLayout(Grey4(0.4f));
+            PopLayout();
+        }
+        PopLayout();
+    }
 }
 
 
-void UpdateUi(UiState* state, StringBuffer* buffer)
+void UpdateUi(AppState* state)
 {
-    state->codeLayout.pageHeight = 0;
-    for (i32 i = 0; i <= buffer->size; i++)
+    Layout* layout = &state->uiState.codeLayout;
+    layout->pageHeight = 0;
+    i32 rowHeight = state->uiState.codeFont.textMetric.tmHeight;
+    for (i32 i = 0; i <= state->file.size; i++)
     {
-        u8 ch = *(buffer->content + i);
+        u8 ch = *(state->file.content + i);
         if (ch == '\n')
-            state->codeLayout.pageHeight += state->codeFont.textMetric.tmHeight;
+            layout->pageHeight += rowHeight;
     }
-    state->codeLayout.pageHeight += state->codeFont.textMetric.tmHeight;
+    layout->pageHeight += rowHeight;
 }
