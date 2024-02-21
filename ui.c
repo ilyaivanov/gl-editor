@@ -29,6 +29,7 @@ void InitUi(UiState* state)
 {
     FontInfo info = {.size = 14, .name = "Consolas"};
     InitFont(&info, &state->codeFont, textColorHex, bgColorHex);
+    InitFont(&info, &state->codeFontSelected, bgColorHex, cursorHex);
     InitFont(&info, &state->lineNumbers, lineColorHex, bgColorHex);
     InitFont(&info, &state->selectedLineNumbers, selectedLineColorHex, bgColorHex);
 
@@ -126,8 +127,8 @@ void DrawNumberRightTop(f32 x, f32 y, u32 val)
 void DrawCursor(f32 x, f32 y)
 {
     SetV4f("color", (V4f){1,1,1,1});
-    f32 width = PX(2);
-    SetMat4("view", CreateViewMatrix(x - width / 2, y, width, currentFont->textMetric.tmHeight));
+    f32 width = currentFont->textures[' '].width;
+    SetMat4("view", CreateViewMatrix(x, y, width, currentFont->textMetric.tmHeight));
     glDrawArrays(GL_TRIANGLE_STRIP, 0, ArrayLength(vertices) / FLOATS_PER_VERTEX);
 }
 
@@ -222,6 +223,18 @@ void PrintParagraphLeftTopMonospaced(const StringBuffer* buffer)
 
         if (ch != '\n')
         {
+            if(i == cursor.cursorIndex)
+                currentFont = &ui->codeFontSelected;
+            else 
+                currentFont = &ui->codeFont;
+
+            if (i == cursor.cursorIndex)
+            {
+                DrawingShapes();
+                DrawCursor(x, y);
+                DrawingText();
+            }
+            
             f32 charWidth = DrawChar(x, y, ch);
 
             if (cursor.selectionStart != SELECTION_NONE && i >= selectionFrom && i < selectionTo)
@@ -231,12 +244,7 @@ void PrintParagraphLeftTopMonospaced(const StringBuffer* buffer)
                 DrawingText();
             }
 
-            if (i == cursor.cursorIndex)
-            {
-                DrawingShapes();
-                DrawCursor(x, y);
-                DrawingText();
-            }
+
             x += charWidth;
         }
     }

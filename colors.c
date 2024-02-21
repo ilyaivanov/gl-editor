@@ -18,6 +18,7 @@
 #define lineColorHex 0x817770
 #define selectedLineColorHex 0xcccccc
 #define bgColorHex 0x121212
+#define cursorHex 0xFFFFFF
 
 #define textColor HexColor(textColorHex)
 #define bgColor HexColor(bgColorHex)

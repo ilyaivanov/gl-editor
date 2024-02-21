@@ -135,9 +135,9 @@ void SetFullscreen(HWND window, i32 isFullscreen)
             SetWindowLong(window, GWL_STYLE, style & ~WS_OVERLAPPEDWINDOW);
 
             SetWindowPos(window, HWND_TOP,
-                         monitorInfo.rcMonitor.left - 10, monitorInfo.rcMonitor.top,
-                         monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left + 10,
-                         monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top + 10,
+                         monitorInfo.rcMonitor.left, monitorInfo.rcMonitor.top,
+                         monitorInfo.rcMonitor.right - monitorInfo.rcMonitor.left,
+                         monitorInfo.rcMonitor.bottom - monitorInfo.rcMonitor.top,
                          SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
         }
     }

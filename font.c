@@ -8,7 +8,7 @@
 // this dependency is questionable
 // #include "layout.c"
 
-#define MAX_CHAR_CODE 200
+#define MAX_CHAR_CODE 126
 
 typedef struct FontKerningPair
 {
@@ -22,6 +22,7 @@ typedef struct FontInfo
 {
     u8* name;
     i32 size;
+    i32 isClearType;
 } FontInfo;
 
 typedef struct FontData 
@@ -148,8 +149,11 @@ void InitFontSystem(FontData *fontData, int fontSize, char* fontName, u32 foregr
     SetTextColor(deviceContext, foreground);
 
 
+    // i32 count = 0;
+    // StringBuffer buff = EmptyStringBuffer();
+
     SIZE size;
-    for (wchar_t ch = 32; ch < MAX_CHAR_CODE; ch += 1)
+    for (wchar_t ch = 32; ch <= MAX_CHAR_CODE; ch += 1)
     {
         int len = 1;
         GetTextExtentPoint32W(deviceContext, &ch, len, &size);
@@ -161,10 +165,20 @@ void InitFontSystem(FontData *fontData, int fontSize, char* fontName, u32 foregr
         texture->height = size.cy;
         texture->bytesPerPixel = 4;
 
+        // count += texture->height * texture->width * texture->bytesPerPixel;
         texture->pixels = VirtualAllocateMemory(texture->height * texture->width * texture->bytesPerPixel);
+        
 
         CopyRectTo(&fontCanvas, texture);
     }
+
+    // AppendStr(&buff, "Allocated: ");
+    // AppendNumber(&buff, count);
+    // AppendStr(&buff, "\n");
+    // OutputDebugStringA(buff.content);
+    // // VirtualFreeMemory(buff.content);
+
+    
 
     GetTextMetrics(deviceContext, &fontData->textMetric);
     DeleteObject(bitmap);

@@ -2,6 +2,7 @@
 #define CORE_C
 
 #include <stdint.h>
+#include <windows.h>
 #include "sincos.c"
 
 #define ArrayLength(array) (sizeof(array) / sizeof(array[0]))
@@ -93,13 +94,11 @@ inline f32 ClampI32(i32 val, i32 min, i32 max)
 
 inline void* VirtualAllocateMemory(size_t size)
 {
-    OutputDebugStringA("Allocating\n");
     return VirtualAlloc(0, size, MEM_COMMIT, PAGE_READWRITE);
 };
 
 inline void VirtualFreeMemory(void * ptr)
 {
-    OutputDebugStringA("Deallocating\n");
     VirtualFree(ptr, 0, MEM_RELEASE);
 };
 

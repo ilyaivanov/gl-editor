@@ -26,11 +26,6 @@
 //     Mouse: move, wheel
 //     Resize
 
-
-// How do I sync UI State and State
-
-
-
 AppState* state;
 
 #define IsKeyPressed(key) (GetKeyState(key) & 0b10000000)
@@ -119,34 +114,41 @@ LRESULT OnEvent(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
         }
         else
         {
+            f32 pageHeightInRows = state->uiState.codeLayout.height / state->uiState.codeFont.textMetric.tmHeight;
+
             if (wParam == VK_DOWN)
-                MoveCursor(&state->file, Down, IsKeyPressed(VK_SHIFT));
+                MoveCursor(&state->file, Down, IsKeyPressed(VK_SHIFT), pageHeightInRows);
             else if (wParam == VK_UP)
-                MoveCursor(&state->file, Up, IsKeyPressed(VK_SHIFT));
+                MoveCursor(&state->file, Up, IsKeyPressed(VK_SHIFT), pageHeightInRows);
             else if (wParam == VK_LEFT && IsKeyPressed(VK_CONTROL))
-                MoveCursor(&state->file, WordJumpLeft, IsKeyPressed(VK_SHIFT));
+                MoveCursor(&state->file, WordJumpLeft, IsKeyPressed(VK_SHIFT), pageHeightInRows);
             else if (wParam == VK_LEFT)
-                MoveCursor(&state->file, Left, IsKeyPressed(VK_SHIFT));
+                MoveCursor(&state->file, Left, IsKeyPressed(VK_SHIFT), pageHeightInRows);
             else if (wParam == VK_RIGHT && IsKeyPressed(VK_CONTROL))
-                MoveCursor(&state->file, WordJumpRight, IsKeyPressed(VK_SHIFT));
+                MoveCursor(&state->file, WordJumpRight, IsKeyPressed(VK_SHIFT), pageHeightInRows);
             else if (wParam == VK_RIGHT)
-                MoveCursor(&state->file, Right, IsKeyPressed(VK_SHIFT));
+                MoveCursor(&state->file, Right, IsKeyPressed(VK_SHIFT), pageHeightInRows);
             else if (wParam == VK_END && IsKeyPressed(VK_CONTROL))
-                MoveCursor(&state->file, FileEnd, IsKeyPressed(VK_SHIFT));
+                MoveCursor(&state->file, FileEnd, IsKeyPressed(VK_SHIFT), pageHeightInRows);
             else if (wParam == VK_HOME && IsKeyPressed(VK_CONTROL))
-                MoveCursor(&state->file, FileStart, IsKeyPressed(VK_SHIFT));
+                MoveCursor(&state->file, FileStart, IsKeyPressed(VK_SHIFT), pageHeightInRows);
             else if (wParam == VK_END)
-                MoveCursor(&state->file, LineEnd, IsKeyPressed(VK_SHIFT));
+                MoveCursor(&state->file, LineEnd, IsKeyPressed(VK_SHIFT), pageHeightInRows);
             else if (wParam == VK_HOME)
-                MoveCursor(&state->file, LineStart, IsKeyPressed(VK_SHIFT));
+                MoveCursor(&state->file, LineStart, IsKeyPressed(VK_SHIFT), pageHeightInRows);
             else if (wParam == VK_NEXT)
-                MoveCursor(&state->file, PageDown, IsKeyPressed(VK_SHIFT));
+                MoveCursor(&state->file, PageDown, IsKeyPressed(VK_SHIFT), pageHeightInRows);
             else if (wParam == VK_PRIOR)
-                MoveCursor(&state->file, PageUp, IsKeyPressed(VK_SHIFT));
+                MoveCursor(&state->file, PageUp, IsKeyPressed(VK_SHIFT), pageHeightInRows);
             else if (wParam == VK_BACK)
                 RemoveCharFromLeft(&state->file);
             else if (wParam == VK_DELETE)
                 RemoveCurrentChar(&state->file);
+            else if (wParam == VK_F11)
+            {
+                state->uiState.isFullscreen = !state->uiState.isFullscreen;
+                SetFullscreen(window, state->uiState.isFullscreen);
+            }
             else if (wParam == 'P' && IsKeyPressed(VK_CONTROL))
             {
                 FindAllFiles(WORKING_FOLDER, state);
@@ -251,17 +253,18 @@ void WinMainCRTStartup()
   
     // state->modal.isShown = 1;
 
-    
-
     HDC dc = GetDC(window);
     Win32InitOpenGL(window);
-    InitFunctions();
 
+    InitFunctions();
+    
 
     timeBeginPeriod(1);
     wglSwapIntervalEXT(0);
 
     InitUi(&state->uiState);
+
+
     UpdateUi(state);
 
     state->isRunning = 1;
@@ -277,7 +280,6 @@ void WinMainCRTStartup()
         // Draw(state);
         // SwapBuffers(dc);
         Sleep(15);
-
     }
 
     ExitProcess(0);

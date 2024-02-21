@@ -11,11 +11,14 @@
 typedef struct UiState
 {
     i32 isModalShown;
+    i32 isFullscreen;
     V2i screen;
     Layout codeLayout;
 
     
     FontData codeFont;
+    FontData codeFontClear;
+    FontData codeFontSelected;
     FontData lineNumbers;
     FontData selectedLineNumbers;
 

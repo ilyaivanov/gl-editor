@@ -181,7 +181,7 @@ i32 JumpWordLeft(StringBuffer* buffer)
     return buffer->size;
 }
 
-void MoveCursor(StringBuffer* buffer, CursorMovement movement, i32 isSelecting)
+void MoveCursor(StringBuffer* buffer, CursorMovement movement, i32 isSelecting, f32 pageHeight)
 {
     TrackSelection(isSelecting);
     i32 nextCursor = 0;
@@ -194,10 +194,10 @@ void MoveCursor(StringBuffer* buffer, CursorMovement movement, i32 isSelecting)
         nextCursor = MoveByLines(buffer, -1);
     else if (movement == Down)
         nextCursor = MoveByLines(buffer, 1);
-    // else if (movement == PageDown)
-    //     nextCursor = MoveByLines(buffer, mainLayout.height / codeFont->textMetric.tmHeight);
-    // else if (movement == PageUp)
-    //     nextCursor = MoveByLines(buffer, -(mainLayout.height / codeFont->textMetric.tmHeight));
+    else if (movement == PageDown)
+        nextCursor = MoveByLines(buffer, pageHeight);
+    else if (movement == PageUp)
+        nextCursor = MoveByLines(buffer, -pageHeight);
     else if (movement == LineEnd)
         nextCursor = GetNewLineAfter(buffer, cursor.cursorIndex);
     else if (movement == LineStart)

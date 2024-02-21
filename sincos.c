@@ -25,7 +25,7 @@ float XSinCosX[][3] = {
 
 void SinCos(float x, float *sinX, float *cosX)
 {
-    float RoundToInteger = 1.5f / R32_EPSILON;
+    const float RoundToInteger = 1.5f / R32_EPSILON;
 
     float OneOverTwoPi = 0.15915494309189535f;
     float K1 = 6.28125f;

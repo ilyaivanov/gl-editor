@@ -2,6 +2,7 @@
 #define STRING_C
 #include "core.c"
 #include "win32.c"
+#include ".\junk\format.c"
 
 
 typedef struct StringBuffer {
@@ -82,9 +83,17 @@ void AppendStr(StringBuffer* buffer, char* str)
     PlaceLineEnd(buffer);
 }
 
+void AppendNumber(StringBuffer* buffer, i32 val)
+{
+    u8 format[20];
+    FormatNumber(val, format);
+    AppendStr(buffer, format);
+}
+
 void BufferClear(StringBuffer* buffer)
 {
     buffer->size = 0;
+    PlaceLineEnd(buffer);
 }
 
 

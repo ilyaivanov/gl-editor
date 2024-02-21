@@ -2,11 +2,14 @@ Overall Goal
 [ ] Replace VS code as soon as possible, then add VIM commands
 
 Backlog
-[ ] Navigation in files
+[y] Navigation in files
 [ ] Undo/redo
+[ ] Search history
 [ ] Search
+[ ] Split
 [ ] Multiple cursors
-[ ] Colors?
+[ ] Registers
+[ ] Colors
 
 Vim
 [ ] Modes
@@ -20,3 +23,11 @@ Running Tasks
         I can't - using WS_POPUP doesn't pin window to screen corners
 [y] Integrate editor 
 [ ] Change history
+
+
+
+Tasks
+21.02.2024
+[ ] Introduce Arena for Fonts memory
+[ ] Implement a flag to differentiate ClearType fonts and Monochrome
+[ ] Start working on undo/redo fuctionality
